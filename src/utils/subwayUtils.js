@@ -263,7 +263,7 @@ export const generateGeminiAIStamp = async (apiKey, model = "gemini-2.5-flash", 
   
   <!-- Outer Curved Text -->
   <path id="curveTop" d="M 18 50 A 32 32 0 0 1 82 50" fill="none" stroke="none" />
-  <path id="curveBottom" d="M 82 50 A 32 32 0 0 1 18 50" fill="none" stroke="none" />
+  <path id="curveBottom" d="M 14 50 A 36 36 0 0 0 86 50" fill="none" stroke="none" />
   
   <text font-family="'Plus Jakarta Sans', sans-serif" font-size="5" font-weight="800" fill="${strokeColor}">
     <textPath href="#curveTop" startOffset="50%" text-anchor="middle">SEOUL SUBWAY STAMP</textPath>
