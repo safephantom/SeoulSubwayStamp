@@ -11,6 +11,7 @@ export default function Settings({
   const [apiKey, setApiKey] = useState(settings.geminiApiKey || '');
   const [showKey, setShowKey] = useState(false);
   const [selectedModel, setSelectedModel] = useState(settings.geminiModel || 'gemini-2.5-flash');
+  const [temperature, setTemperature] = useState(settings.geminiTemperature !== undefined ? settings.geminiTemperature : 0.4);
   const [radius, setRadius] = useState(settings.gpsRadius || 150);
   
   const [importJson, setImportJson] = useState('');
@@ -22,6 +23,7 @@ export default function Settings({
     setSettings({
       geminiApiKey: apiKey.trim(),
       geminiModel: selectedModel,
+      geminiTemperature: parseFloat(temperature),
       gpsRadius: parseInt(radius, 10)
     });
     setSaveSuccess(true);
@@ -150,11 +152,42 @@ export default function Settings({
                 cursor: 'pointer'
               }}
             >
-              <option value="gemini-2.5-flash" style={{ background: '#101118' }}>gemini-2.5-flash (추천 - 매우 빠름)</option>
-              <option value="gemini-2.5-pro" style={{ background: '#101118' }}>gemini-2.5-pro (고품질 디자인)</option>
+              <option value="gemini-2.5-flash" style={{ background: '#101118' }}>gemini-2.5-flash (기본 추천)</option>
+              <option value="gemini-2.5-pro" style={{ background: '#101118' }}>gemini-2.5-pro (고품질 디자인 추천)</option>
+              <option value="gemini-3.1-pro-preview" style={{ background: '#101118' }}>gemini-3.1-pro (Preview - 최고품질)</option>
+              <option value="gemini-3-flash-preview" style={{ background: '#101118' }}>gemini-3-flash (Preview)</option>
+              <option value="gemini-3.5-flash" style={{ background: '#101118' }}>gemini-3.5-flash (최신 모델)</option>
               <option value="gemini-2.0-flash" style={{ background: '#101118' }}>gemini-2.0-flash</option>
               <option value="gemini-2.0-pro-exp-02-05" style={{ background: '#101118' }}>gemini-2.0-pro-exp-02-05</option>
             </select>
+          </div>
+
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+              <span>AI 디자인 창의성 레벨 (Temperature)</span>
+              <span style={{ color: 'var(--color-primary)', fontWeight: '700' }}>
+                {temperature === 0.0 ? '0.0 (정형화됨)' : temperature === 1.0 ? '1.0 (매우 창의적)' : temperature.toFixed(1)}
+              </span>
+            </div>
+            <input 
+              type="range" 
+              min="0.0" 
+              max="1.0" 
+              step="0.1"
+              value={temperature}
+              onChange={(e) => setTemperature(parseFloat(e.target.value))}
+              style={{
+                width: '100%',
+                accentColor: 'var(--color-primary)',
+                background: 'rgba(255,255,255,0.05)',
+                height: '6px',
+                borderRadius: '3px',
+                cursor: 'pointer'
+              }}
+            />
+            <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', lineHeight: '1.4' }}>
+              낮을수록 정해진 형태의 단정한 아이콘을 그리며, 높을수록 화려하고 다채로운 구도의 창의적인 스탬프를 시도합니다. (추천: 0.4 ~ 0.6)
+            </p>
           </div>
 
 

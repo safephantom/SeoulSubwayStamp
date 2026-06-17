@@ -23,7 +23,8 @@ export default function App() {
     }
     return {
       geminiApiKey: '',
-      geminiModel: 'gemini-2.5-flash',
+      geminiModel: 'gemini-3-flash-preview',
+      geminiTemperature: 0.5,
       gpsRadius: 150
     };
   });
@@ -37,7 +38,32 @@ export default function App() {
   const [collectedStamps, setCollectedStamps] = useState(() => {
     const saved = localStorage.getItem('subway-stamp-collected');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* fallback */ }
+      try { 
+        const parsed = JSON.parse(saved); 
+        // Migration logic for old schema (stationId -> stationId_lineName)
+        let migrated = false;
+        const newSchemaStamps = {};
+        Object.keys(parsed).forEach(key => {
+          if (!key.includes('_')) {
+            const stationId = parseInt(key, 10);
+            const station = stationsData.find(s => s.id === stationId);
+            if (station && station.lines && station.lines.length > 0) {
+              const primaryLine = station.lines[0];
+              newSchemaStamps[`${stationId}_${primaryLine}`] = parsed[key];
+              migrated = true;
+            } else {
+              newSchemaStamps[key] = parsed[key];
+            }
+          } else {
+            newSchemaStamps[key] = parsed[key];
+          }
+        });
+        if (migrated) {
+          localStorage.setItem('subway-stamp-collected', JSON.stringify(newSchemaStamps));
+          return newSchemaStamps;
+        }
+        return parsed; 
+      } catch (e) { /* fallback */ }
     }
     return {};
   });
@@ -125,10 +151,11 @@ export default function App() {
   };
 
   // --- Confirm Collection & Save ---
-  const handleConfirmCollect = (stationId, stampType, svgContent, story) => {
+  const handleConfirmCollect = (stationId, lineName, stampType, svgContent, story) => {
+    const stampKey = `${stationId}_${lineName}`;
     const updatedStamps = {
       ...collectedStamps,
-      [stationId]: {
+      [stampKey]: {
         collectedAt: new Date().toISOString(),
         stampType: stampType,
         svgContent: svgContent,
@@ -145,21 +172,23 @@ export default function App() {
   };
 
   // --- Delete Stamp ---
-  const handleDeleteStamp = (stationId) => {
-    if (window.confirm("이 역의 수집된 도장을 삭제하시겠습니까?")) {
+  const handleDeleteStamp = (stationId, lineName) => {
+    const stampKey = `${stationId}_${lineName}`;
+    if (window.confirm(`${lineName} 도장을 삭제하시겠습니까?`)) {
       const updatedStamps = { ...collectedStamps };
-      delete updatedStamps[stationId];
+      delete updatedStamps[stampKey];
       saveCollectedStamps(updatedStamps);
       setSelectedStation(null); // Close modal
     }
   };
 
   // --- Save / Update custom SVG and story (AI redesign, revert to offline, etc.) ---
-  const handleSaveAIStamp = (stationId, svgContent, story, stampType = 'ai') => {
+  const handleSaveAIStamp = (stationId, lineName, svgContent, story, stampType = 'ai') => {
+    const stampKey = `${stationId}_${lineName}`;
     const updatedStamps = {
       ...collectedStamps,
-      [stationId]: {
-        collectedAt: collectedStamps[stationId]?.collectedAt || new Date().toISOString(),
+      [stampKey]: {
+        collectedAt: collectedStamps[stampKey]?.collectedAt || new Date().toISOString(),
         stampType: stampType,
         svgContent: svgContent,
         story: story
@@ -180,7 +209,8 @@ export default function App() {
     setCollectedStamps({});
     setSettings({
       geminiApiKey: '',
-      geminiModel: 'gemini-2.5-flash',
+      geminiModel: 'gemini-3-flash-preview',
+      geminiTemperature: 0.5,
       gpsRadius: 150
     });
   };
@@ -189,21 +219,23 @@ export default function App() {
   const isCollectable = useMemo(() => {
     if (!selectedStation) return false;
     
-    // If it's already collected, it's not collectable (it's already unlocked)
-    if (collectedStamps[selectedStation.id]) return false;
-    
     const { lat, lng } = activeCoordinates;
     if (lat === null || lng === null) return false;
     
     const distance = calculateDistance(lat, lng, selectedStation.lat, selectedStation.lng);
-    return distance <= settings.gpsRadius;
+    if (distance > settings.gpsRadius) return false;
+    
+    // Collectable if at least one of the lines is not collected yet
+    const hasUncollectedLine = selectedStation.lines.some(line => !collectedStamps[`${selectedStation.id}_${line}`]);
+    return hasUncollectedLine;
   }, [selectedStation, activeCoordinates, settings.gpsRadius, collectedStamps]);
 
   // --- Determine if any station is nearby (for nav icon marker) ---
   const isAnyStationNearby = useMemo(() => {
     if (closestStations.length === 0) return false;
     const nearest = closestStations[0];
-    return nearest.distance <= settings.gpsRadius && !collectedStamps[nearest.id];
+    const hasUncollectedLine = nearest.lines.some(line => !collectedStamps[`${nearest.id}_${line}`]);
+    return nearest.distance <= settings.gpsRadius && hasUncollectedLine;
   }, [closestStations, settings.gpsRadius, collectedStamps]);
 
   return (
@@ -292,7 +324,7 @@ export default function App() {
       {selectedStation && (
         <StampDetailModal
           station={selectedStation}
-          stamp={collectedStamps[selectedStation.id]}
+          collectedStamps={collectedStamps}
           isCollectable={isCollectable}
           onClose={() => setSelectedStation(null)}
           settings={settings}

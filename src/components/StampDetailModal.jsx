@@ -4,7 +4,7 @@ import { getLineColor, generateDefaultStampSVG, generateGeminiAIStamp } from '..
 
 export default function StampDetailModal({ 
   station, 
-  stamp, 
+  collectedStamps,
   isCollectable,
   onClose, 
   settings, 
@@ -12,9 +12,14 @@ export default function StampDetailModal({
   onConfirmCollect,
   onDeleteStamp
 }) {
+  // Local state for the selected line in transit interchange stations
+  const [activeLine, setActiveLine] = useState(station.lines[0]);
+  
+  // Dynamically resolve the active stamp data based on the selected line
+  const stampKey = `${station.id}_${activeLine}`;
+  const stamp = collectedStamps[stampKey];
   const isCollected = !!stamp;
-  const primaryLine = station.lines[0];
-  const lineColor = getLineColor(primaryLine);
+  const lineColor = getLineColor(activeLine);
   
   // Local state for the "Collect Flow" (temporary in-memory stamp before confirmation)
   const [tempStamp, setTempStamp] = useState(null);
@@ -22,6 +27,12 @@ export default function StampDetailModal({
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
   const [error, setError] = useState(null);
+
+  // Reset tempStamp when active line changes
+  React.useEffect(() => {
+    setTempStamp(null);
+    setError(null);
+  }, [activeLine]);
 
   const formatCollectedDate = (isoString) => {
     if (!isoString) return '';
@@ -70,7 +81,8 @@ export default function StampDetailModal({
         apiKey,
         settings.geminiModel || 'gemini-2.5-flash',
         station.name,
-        primaryLine
+        activeLine,
+        settings.geminiTemperature !== undefined ? settings.geminiTemperature : 0.4
       );
       
       clearInterval(interval);
@@ -85,7 +97,7 @@ export default function StampDetailModal({
         });
       } else {
         // For existing stamp: update instantly in database
-        onSaveAIStamp(station.id, result.svg, result.story, 'ai');
+        onSaveAIStamp(station.id, activeLine, result.svg, result.story, 'ai');
       }
       
       setTimeout(() => {
@@ -103,13 +115,13 @@ export default function StampDetailModal({
   const handleGenerateDefaultOfflineStamp = () => {
     const defaultSvg = generateDefaultStampSVG(
       station.name, 
-      primaryLine, 
+      activeLine, 
       new Date().toLocaleDateString()
     );
     setTempStamp({
       stampType: 'default',
       svgContent: defaultSvg,
-      story: `${station.name}에 도착하여 발급된 기본 오프라인 도장입니다. (호선: ${station.lines.join(', ')})`
+      story: `${station.name}에 도착하여 발급된 기본 오프라인 도장입니다. (호선: ${activeLine})`
     });
   };
 
@@ -119,23 +131,26 @@ export default function StampDetailModal({
       const dateStr = stamp.collectedAt 
         ? new Date(stamp.collectedAt).toLocaleDateString() 
         : new Date().toLocaleDateString();
-      const defaultSvg = generateDefaultStampSVG(station.name, primaryLine, dateStr);
-      const defaultStory = `${station.name}에 도착하여 발급된 기본 오프라인 도장입니다. (호선: ${station.lines.join(', ')})`;
-      onSaveAIStamp(station.id, defaultSvg, defaultStory, 'default');
+      const defaultSvg = generateDefaultStampSVG(station.name, activeLine, dateStr);
+      const defaultStory = `${station.name}에 도착하여 발급된 기본 오프라인 도장입니다. (호선: ${activeLine})`;
+      onSaveAIStamp(station.id, activeLine, defaultSvg, defaultStory, 'default');
     }
   };
 
   // Confirm collection and save to local storage
   const handleConfirmSaveCollection = () => {
     if (!tempStamp) return;
-    onConfirmCollect(station.id, tempStamp.stampType, tempStamp.svgContent, tempStamp.story);
+    onConfirmCollect(station.id, activeLine, tempStamp.stampType, tempStamp.svgContent, tempStamp.story);
   };
+
+  // A line is collectable if GPS is active and this specific line is not collected yet
+  const isLineCollectable = isCollectable && !isCollected;
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ 
               fontSize: '11px', 
@@ -145,10 +160,7 @@ export default function StampDetailModal({
               padding: '2px 6px', 
               borderRadius: '4px' 
             }}>
-              {primaryLine}
-            </span>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              {station.lines.join(', ')}
+              {activeLine}
             </span>
           </div>
           <button 
@@ -165,6 +177,58 @@ export default function StampDetailModal({
             <X size={18} />
           </button>
         </div>
+
+        {/* Interchange Line Tabs (if multiple lines exist) */}
+        {station.lines.length > 1 && (
+          <div style={{
+            display: 'flex',
+            gap: '6px',
+            marginBottom: '16px',
+            overflowX: 'auto',
+            paddingBottom: '4px',
+            borderBottom: '1px solid rgba(255,255,255,0.05)'
+          }}>
+            {station.lines.map((line) => {
+              const isActive = line === activeLine;
+              const lineBadgeColor = getLineColor(line);
+              const isLineCollected = !!collectedStamps[`${station.id}_${line}`];
+              
+              return (
+                <button
+                  key={line}
+                  onClick={() => setActiveLine(line)}
+                  style={{
+                    background: isActive ? lineBadgeColor : 'rgba(255,255,255,0.03)',
+                    border: '1px solid',
+                    borderColor: isActive ? 'transparent' : 'rgba(255,255,255,0.05)',
+                    color: isActive ? 'white' : 'var(--text-secondary)',
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    padding: '6px 12px',
+                    borderRadius: '20px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <span>{line}</span>
+                  {isLineCollected && (
+                    <span style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: isActive ? 'white' : lineBadgeColor,
+                      display: 'inline-block'
+                    }} />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Large Stamp Display Area */}
         <div style={{ 
@@ -222,13 +286,13 @@ export default function StampDetailModal({
                 />
               ) : (
                 <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                  {isCollectable ? (
+                  {isLineCollectable ? (
                     <Award size={40} className="pulse-target" style={{ color: 'var(--color-success)', margin: '0 auto 8px' }} />
                   ) : (
                     <MapPin size={40} style={{ color: `${lineColor}44`, margin: '0 auto 8px' }} />
                   )}
                   <span style={{ fontSize: '12px', fontWeight: '600' }}>
-                    {isCollectable ? '도장 수집 대기 중' : '미수집 상태'}
+                    {isLineCollectable ? '도장 수집 대기 중' : '미수집 상태'}
                   </span>
                 </div>
               )}
@@ -308,7 +372,7 @@ export default function StampDetailModal({
               {/* Delete Stamp Button */}
               <button
                 className="btn"
-                onClick={() => onDeleteStamp(station.id)}
+                onClick={() => onDeleteStamp(station.id, activeLine)}
                 style={{
                   background: 'rgba(239, 68, 68, 0.1)',
                   color: 'var(--color-danger)',
@@ -322,7 +386,7 @@ export default function StampDetailModal({
               </button>
             </div>
           </div>
-        ) : isCollectable ? (
+        ) : isLineCollectable ? (
           /* ========================================================================= */
           /* CASE 2: Station is Collectable (GPS Match) - Collect Flow                  */
           /* ========================================================================= */
@@ -339,11 +403,11 @@ export default function StampDetailModal({
                   color: '#10b981',
                   fontWeight: '600'
                 }}>
-                  🎉 현재 {station.name} 수집 권한이 활성화되었습니다!
+                  🎉 현재 {station.name} [{activeLine}] 수집 권한이 활성화되었습니다!
                 </div>
                 
                 <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  도장을 생성한 뒤 [수집 확정]을 눌러 도장첩에 저장하세요.
+                  도장을 생성한 뒤 [도장 획득 확정]을 눌러 도장첩에 저장하세요.
                 </p>
 
                 {error && (
@@ -422,15 +486,17 @@ export default function StampDetailModal({
           </div>
         ) : (
           /* ========================================================================= */
-          /* CASE 3: Locked Station - Cannot collect (Out of range)                    */
+          /* CASE 3: Locked Station - Cannot collect (Out of range / Already collected)  */
           /* ========================================================================= */
           <div className="glass-card" style={{ padding: '16px', textAlign: 'center', background: 'rgba(255,255,255,0.01)' }}>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
               <ShieldAlert size={16} style={{ color: 'var(--color-warning)' }} />
-              <span>도장을 획득할 수 없는 위치입니다.</span>
+              <span>도장을 획득할 수 없는 상태입니다.</span>
             </p>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.5' }}>
-              지하철을 타고 이 역 근처(수집 반경 {settings.gpsRadius}m 이내)로 접근하면 도장 수집 권한이 활성화됩니다.
+              {isCollected 
+                ? `이미 ${activeLine} 도장을 수집 완료했습니다!`
+                : `지하철을 타고 이 역 근처(수집 반경 ${settings.gpsRadius}m 이내)로 접근하면 해당 호선의 도장 수집 권한이 활성화됩니다.`}
             </p>
           </div>
         )}

@@ -30,6 +30,26 @@ export const getLineColor = (lineName) => {
   return LINE_COLORS[lineName] || "var(--line-default)";
 };
 
+// Design cues map for key Seoul Subway Stations to ensure visually stunning and relevant stamps
+export const STATION_DESIGN_HINTS = {
+  "홍대입구": "인디 음악과 버스킹을 상징하는 정교한 어쿠스틱 통기타와 그 주변을 흐르듯 감싸는 작은 음표들",
+  "경복궁": "경복궁 근정전 기와지붕의 우아한 이중 처마 곡선과 은은한 전통 문창살 패턴",
+  "안국": "북촌 한옥마을의 전통 기와 지붕과 정갈한 한글 격자 창살 문양",
+  "성수": "성수동 수제화 거리를 나타내는 가죽 구두 실루엣과 장인의 가위, 그리고 공장 톱니바퀴 조각",
+  "잠실": "석촌호수의 잔물결 위에 우뚝 서서 하늘을 찌르는 롯데월드타워의 초고층 실루엣",
+  "시청": "서울 도서관(구 시청사) 건물의 고풍스러운 전면 석조 기둥 외관과 서울광장의 둥근 곡선 라인",
+  "여의도": "공원에 흩날리는 벚꽃 꽃잎들과 국회의사당의 상징적인 둥근 돔 지붕 실루엣",
+  "동대문역사문화공원": "DDP(동대문디자인플라자)의 우주선 같은 독특하고 미래지향적인 은빛 유선형 빌딩 외곽선",
+  "명동": "남산 서울타워(N서울타워)의 높은 전경 실루엣과 쇼핑백/선물상자의 단순한 디자인 조화",
+  "강남": "빽빽하게 솟은 강남대로의 고층 현대식 빌딩 숲과 바쁘게 흐르는 교차로 도로 선들",
+  "혜화": "대학로 극장가를 상징하는 무대의 반쯤 열린 벨벳 커튼과 슬픔/기쁨을 상징하는 연극 가면",
+  "신도림": "디큐브시티의 현대식 구형 유리 돔 건축물과 바쁘게 뻗어나가는 기차 철로 철길 무늬",
+  "왕십리": "철도 교통의 중심지를 상징하는 오거리 방향 표지판과 교차하는 철길 궤도, 그리고 열차 바퀴",
+  "독립문": "우뚝 솟은 석조 독립문 아치교 기단과 그 뒤로 은은하게 들어간 태극 문양 무늬",
+  "고속터미널": "사방으로 뻗어 나가는 고속도로 차선들과 버스 바퀴, 그리고 이정표 화살표들"
+};
+
+
 // Calculate distance between two GPS coordinates using Haversine formula (returns meters)
 export const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371e3; // Earth radius in meters
@@ -51,229 +71,77 @@ export const calculateDistance = (lat1, lon1, lat2, lon2) => {
 
 // Generate a beautiful default (fallback) SVG stamp programmatically
 export const generateDefaultStampSVG = (stationName, lineName, dateString = "UNLOCKED") => {
-  const color = getLineColor(lineName);
-  
-  // Let's resolve the actual colors in hex to be safe when stored as static SVG strings in LocalStorage!
   const hexColors = {
-    "1호선": "#0052A4",
-    "2호선": "#00A84D",
-    "3호선": "#EF7C1C",
-    "4호선": "#00A2D1",
-    "5호선": "#996CAC",
-    "6호선": "#CD7C2F",
-    "7호선": "#747F28",
-    "8호선": "#E6186C",
-    "9호선": "#BDB092",
-    "수인분당선": "#F2A900",
-    "신분당선": "#D4003B",
-    "경의중앙선": "#77C4A3",
-    "공항철도": "#0090D2",
-    "경춘선": "#0C8E72",
-    "우이신설선": "#B0C4DE",
-    "신림선": "#6789CA",
-    "김포골드라인": "#AD8600",
-    "용인경전철": "#509F3D",
-    "의정부경전철": "#FDA600",
-    "경강선": "#0054A6",
-    "서해선": "#81A914",
-    "GTX-A": "#A17800",
-    "인천1호선": "#7CA8D5",
-    "인천2호선": "#FD8100",
+    "1호선": "#0052A4", "2호선": "#00A84D", "3호선": "#EF7C1C", "4호선": "#00A2D1",
+    "5호선": "#996CAC", "6호선": "#CD7C2F", "7호선": "#747F28", "8호선": "#E6186C",
+    "9호선": "#BDB092", "수인분당선": "#F2A900", "신분당선": "#D4003B", "경의중앙선": "#77C4A3",
+    "공항철도": "#0090D2", "경춘선": "#0C8E72", "우이신설선": "#B0C4DE", "신림선": "#6789CA",
+    "김포골드라인": "#AD8600", "용인경전철": "#509F3D", "의정부경전철": "#FDA600",
+    "경강선": "#0054A6", "서해선": "#81A914", "GTX-A": "#A17800", "인천1호선": "#7CA8D5", "인천2호선": "#FD8100",
   };
   
   const strokeColor = hexColors[lineName] || "#6366f1";
   
-  // Draw a circular postmark stamp
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
-    <circle cx="50" cy="50" r="46" fill="none" stroke="${strokeColor}" stroke-width="3" />
-    <circle cx="50" cy="50" r="41" fill="none" stroke="${strokeColor}" stroke-width="1.2" stroke-dasharray="3 2" />
-    <circle cx="50" cy="50" r="32" fill="none" stroke="${strokeColor}" stroke-width="1" />
-    
-    <!-- Central Subway Icon -->
-    <path d="M42 42 H58 M42 48 H58 M44 38 L42 42 V54 L44 58 H56 L58 54 V42 L56 38 Z" fill="none" stroke="${strokeColor}" stroke-width="2" stroke-linejoin="round"/>
-    <circle cx="46" cy="52" r="1.5" fill="${strokeColor}"/>
-    <circle cx="54" cy="52" r="1.5" fill="${strokeColor}"/>
-    <path d="M46 58 L44 63 M54 58 L56 63" stroke="${strokeColor}" stroke-width="2" stroke-linecap="round"/>
-    
-    <!-- Station Text in Middle -->
-    <rect x="20" y="62" width="60" height="10" rx="3" fill="#101118" stroke="${strokeColor}" stroke-width="1"/>
-    <text x="50" y="69" font-family="'Plus Jakarta Sans', sans-serif" font-size="6.5" font-weight="800" fill="${strokeColor}" text-anchor="middle" letter-spacing="0.5">${stationName}</text>
-    
-    <!-- Outer Curved Text -->
-    <path id="curveTop" d="M 18 50 A 32 32 0 0 1 82 50" fill="none" stroke="none" />
-    <path id="curveBottom" d="M 82 50 A 32 32 0 0 1 18 50" fill="none" stroke="none" />
-    
-    <text font-family="'Plus Jakarta Sans', sans-serif" font-size="5.5" font-weight="600" fill="${strokeColor}">
-      <textPath href="#curveTop" startOffset="50%" text-anchor="middle">${lineName}</textPath>
-    </text>
-    <text font-family="'Plus Jakarta Sans', sans-serif" font-size="5" font-weight="600" fill="${strokeColor}">
-      <textPath href="#curveBottom" startOffset="50%" text-anchor="middle">${dateString}</textPath>
-    </text>
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100%" height="100%">
+    <circle cx="100" cy="100" r="96" fill="none" stroke="${strokeColor}" stroke-width="5" />
+    <circle cx="100" cy="100" r="87" fill="none" stroke="${strokeColor}" stroke-width="2" stroke-dasharray="6 4" />
+    <circle cx="100" cy="100" r="64" fill="none" stroke="${strokeColor}" stroke-width="2" />
+    <path d="M84 84 H116 M84 96 H116 M88 76 L84 84 V108 L88 116 H112 L116 108 V84 L112 76 Z" fill="none" stroke="${strokeColor}" stroke-width="4" stroke-linejoin="round"/>
+    <circle cx="92" cy="104" r="3" fill="${strokeColor}"/>
+    <circle cx="108" cy="104" r="3" fill="${strokeColor}"/>
+    <path d="M92 116 L88 126 M108 116 L112 126" stroke="${strokeColor}" stroke-width="4" stroke-linecap="round"/>
+    <rect x="40" y="124" width="120" height="20" rx="6" fill="#101118" stroke="${strokeColor}" stroke-width="2"/>
+    <text x="100" y="138" font-family="'Plus Jakarta Sans', sans-serif" font-size="13" font-weight="800" fill="${strokeColor}" text-anchor="middle" letter-spacing="1">${stationName}</text>
+    <path id="curveTop" d="M 28 100 A 72 72 0 0 1 172 100" fill="none" stroke="none" />
+    <path id="curveBottom" d="M 21 100 A 79 79 0 0 0 179 100" fill="none" stroke="none" />
+    <text font-family="'Plus Jakarta Sans', sans-serif" font-size="11" font-weight="600" fill="${strokeColor}"><textPath href="#curveTop" startOffset="50%" text-anchor="middle">${lineName}</textPath></text>
+    <text font-family="'Plus Jakarta Sans', sans-serif" font-size="10" font-weight="600" fill="${strokeColor}"><textPath href="#curveBottom" startOffset="50%" text-anchor="middle">${dateString}</textPath></text>
   </svg>`;
 };
 
 // Direct Client-Side Call to Gemini API to generate custom SVG Stamp
-export const generateGeminiAIStamp = async (apiKey, model = "gemini-2.5-flash", stationName, lineName) => {
+export const generateGeminiAIStamp = async (apiKey, model = "gemini-2.5-flash", stationName, lineName, temperature = 0.4) => {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-  
+  const hint = STATION_DESIGN_HINTS[stationName] || "이 역의 역사, 문화, 주변 유명한 랜드마크, 혹은 지역적 특색을 담은 단순하고 강렬한 대표 심볼";
+
   const prompt = `지하철역 이름: ${stationName} (${lineName})
-이 역의 역사, 문화, 주변 유명한 랜드마크, 혹은 지역적 특색을 상징하는 동그란 모양의 '클래식 지하철 도장(Stamp)'의 중앙에 들어갈 벡터 일러스트(Symbol)를 SVG 요소로 그려줘.
+그려야 할 핵심 상징: **${hint}**
+동그란 모양의 '지하철 기념 도장'의 중앙에 들어갈 유려하고 밀도 높은 일러스트를 SVG 도형 태그(최상위 <svg> 제외)들로만 반환해줘.
 
-[시각적 스타일 요구사항 - 정교한 동판화 및 펜 선화 스타일]
-1. **디테일한 묘사와 단순함 배제**: 
-   - 단순한 원, 직사각형 한두 개로 구성된 성의 없는 디자인(어린이 그림 수준)은 절대 피해야 해.
-   - 오래된 지폐나 클래식 동판화(copperplate print)에 들어가는 정교한 **세밀 라인 아트(Engraving / Fine Line Art)** 스타일로 그려줘.
-   - 선으로만 그리는 것이 아니라, 기단이나 지붕, 상징물의 주요 단면에 색을 채워 시각적 무게감(면 분할)을 주고 싶다면 \`fill="black"\`을 적극적으로 사용해줘.
-   - 선(Outline)만 표현할 영역은 \`fill="none" stroke="black"\`으로 지정하고, 색을 채울(Fill) 영역은 \`fill="black" stroke="none"\`(또는 stroke="black")으로 표현해줘.
-   - (중요) 스타일 속성(\`style="..."\`)은 파싱 오류를 일으키므로 절대 사용하지 말고, \`stroke\`, \`fill\`, \`stroke-width\` 등 개별 속성을 직접 사용할 것.
-2. **반복 생성 루프 방지**:
-   - 디테일을 살리되, 빗금선(Hatching)을 무한히 그리는 반복 루프에 빠져 출력이 중간에 끊기지 않도록 해줘. 전체 패스(\`<path>\` 등) 개수는 최대 25~35개 내외로 조절하여 1,200토큰 이내로 간결하면서도 완성도 있게 표현해줘.
-3. **구도 및 중앙 정렬**:
-   - 뷰박스는 0 0 100 100 기준이야.
-   - 일러스트의 모든 구성 요소는 중앙 (50, 50)을 기준으로 모여야 하며, 반경 22 이내의 보이지 않는 가상 원 영역 안에 꽉 차되 이를 절대 벗어나지 않도록 조밀하게 그려줘.
-4. **반환할 SVG 태그**:
-   - 최상위 <svg> 태그나 <style>, <metadata> 등은 절대 생성하지 마. 우리가 제공하는 고정 템플릿의 <g> 그룹 태그 안에 바로 삽입될 거야.
-   - 오직 <path>, <circle>, <rect>, <line>, <polygon> 등 디자인을 구성하는 순수 도형 태그들만 반환해줘.
+[디자인 요구사항]
+1. **풍성하고 대칭적인 레이아웃**: 상징물 주변에 자연스럽게 어울리는 배경 요소(구름, 별빛, 물결, 철길 등)를 배치하여 시각 밀도를 높여줘. 유려한 대칭성과 곡선(C,S,Q) 및 직선을 융합하고, 선이 끊어지지 않게 닫힌 경로(Z) 위주로 설계해줘.
+2. **면(Fill)과 선(Stroke)의 대비**: 강조할 부위(기와지붕 등)는 단색 면(\`fill="black" stroke="none"\`)으로 채우고, 묘사 선은 굵게(\`fill="none" stroke="black" stroke-width="10"\`) 처리하여 선명하고 묵직한 스탬프 잉크 느낌을 구현해줘.
+3. **창의적 재해석 허용**: 단순히 1차원적인 묘사를 넘어, 역 지명의 유래나 특징에서 얻은 영감을 기하학적 엠블럼이나 은유적이고 예술적인 구도로 위트 있게 표현해도 좋아.
+4. **중앙 정렬 규격**: viewBox 0 0 1000 1000 기준, 모든 일러스트는 중심(500,500) 반경 280 이내(좌표값 220~780 영역)에 온전히 배치해줘.
 
-[출력 형식 및 스토리 요구사항]
-1. 다른 설명 텍스트 없이 오직 마크다운 코드 블록(\`\`\`xml ... \`\`\`)으로 감싸서 생성된 도형 태그들만 출력해줘.
-2. **스토리(Story) 규격**:
-   - 도장의 맨 마지막 라인에 주석 형식으로 이 도장의 상징적 의미와 역의 스토리를 담아줘.
-   - 예시: <!-- story: 성수역의 오랜 수제화 거리 역사와 장인정신을 클래식한 가죽 구두 실루엣으로 담아내고, 빈티지한 레드 잉크 레이아웃으로 도시의 산업 문화적 가치를 우아하게 표현한 도장입니다. -->
-   - 위 예시처럼 역의 역사/문화적 가치와 도장 속 상징물의 의미를 엮어 품격 있는 2~3문장(100자 내외)으로 작성해줘.`;
+[출력 형식 및 스토리]
+- 마크다운 코드 블록(\`\`\`xml ... \`\`\`) 내에 생성된 SVG 태그들만 출력해줘.
+- 도장 맨 아래에 이 도장의 주석 스토리(예: <!-- story: ... -->)를 반드시 포함해줘.`;
   
-  const requestBody = {
-    contents: [
-      {
-        parts: [
-          {
-            text: prompt
-          }
-        ]
-      }
-    ],
-    generationConfig: {
-      temperature: 0.2,
-      topP: 0.95,
-      maxOutputTokens: 8192
-    }
-  };
+  const requestBody = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: temperature, topP: 0.95, maxOutputTokens: 8192 } };
 
   try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(requestBody)
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error?.message || `API error (${response.status})`);
-    }
-
+    const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(requestBody) });
+    if (!response.ok) throw new Error(`API error (${response.status})`);
     const data = await response.json();
-    console.log("Gemini API Full Response:", data);
-    
     const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    console.log("Gemini Raw Response Text:", generatedText);
     
-    if (data.candidates?.[0]?.finishReason && data.candidates[0].finishReason !== "STOP") {
-      console.warn("Gemini generation finished with non-STOP reason:", data.candidates[0].finishReason);
-    }
-
-    // Extract inside elements from XML markdown block
-    let innerSvgContent = "";
-    const blockStart = generatedText.indexOf("```xml");
-    const blockEnd = generatedText.lastIndexOf("```");
+    let innerSvgContent = generatedText.substring(generatedText.indexOf("```xml") + 6, generatedText.lastIndexOf("```")).trim();
+    innerSvgContent = innerSvgContent.replace(/<\?xml[\s\S]*?\?>/g, "").replace(/<!DOCTYPE[\s\S]*?>/g, "").replace(/<svg[\s\S]*?>/g, "").replace(/<\/svg>/g, "");
     
-    if (blockStart !== -1 && blockEnd !== -1 && blockEnd > blockStart) {
-      innerSvgContent = generatedText.substring(blockStart + 6, blockEnd).trim();
-    } else {
-      const genericStart = generatedText.indexOf("```");
-      const genericEnd = generatedText.lastIndexOf("```");
-      if (genericStart !== -1 && genericEnd !== -1 && genericEnd > genericStart) {
-        innerSvgContent = generatedText.substring(genericStart + 3, genericEnd).trim();
-      } else {
-        innerSvgContent = generatedText.trim();
-      }
-    }
-    
-    // Strip root <svg> tag if Gemini still generated it
-    const lowerInner = innerSvgContent.toLowerCase();
-    const svgOpenIdx = lowerInner.indexOf("<svg");
-    if (svgOpenIdx !== -1) {
-      const openTagEnd = innerSvgContent.indexOf(">", svgOpenIdx);
-      const svgCloseIdx = lowerInner.lastIndexOf("</svg>");
-      if (openTagEnd !== -1 && svgCloseIdx !== -1 && svgCloseIdx > openTagEnd) {
-        innerSvgContent = innerSvgContent.substring(openTagEnd + 1, svgCloseIdx).trim();
-      }
-    }
-    
-    // Remove DOCTYPE or XML declarations
-    innerSvgContent = innerSvgContent.replace(/<\?xml[\s\S]*?\?>/g, "");
-    innerSvgContent = innerSvgContent.replace(/<!DOCTYPE[\s\S]*?>/g, "");
-    
-    // Parse line colors to combine inside the local template
-    const hexColors = {
-      "1호선": "#0052A4",
-      "2호선": "#00A84D",
-      "3호선": "#EF7C1C",
-      "4호선": "#00A2D1",
-      "5호선": "#996CAC",
-      "6호선": "#CD7C2F",
-      "7호선": "#747F28",
-      "8호선": "#E6186C",
-      "9호선": "#BDB092",
-      "수인분당선": "#F2A900",
-      "신분당선": "#D4003B",
-      "경의중앙선": "#77C4A3",
-      "공항철도": "#0090D2",
-      "경춘선": "#0C8E72",
-      "우이신설선": "#B0C4DE",
-      "신림선": "#6789CA",
-      "김포골드라인": "#AD8600",
-      "용인경전철": "#509F3D",
-      "의정부경전철": "#FDA600",
-      "경강선": "#0054A6",
-      "서해선": "#81A914",
-      "GTX-A": "#A17800",
-      "인천1호선": "#7CA8D5",
-      "인천2호선": "#FD8100",
-    };
-    
+    const hexColors = { "1호선": "#0052A4", "2호선": "#00A84D", "3호선": "#EF7C1C", "4호선": "#00A2D1", "5호선": "#996CAC", "6호선": "#CD7C2F", "7호선": "#747F28", "8호선": "#E6186C", "9호선": "#BDB092", "수인분당선": "#F2A900", "신분당선": "#D4003B", "경의중앙선": "#77C4A3", "공항철도": "#0090D2", "경춘선": "#0C8E72", "우이신설선": "#B0C4DE", "신림선": "#6789CA", "김포골드라인": "#AD8600", "용인경전철": "#509F3D", "의정부경전철": "#FDA600", "경강선": "#0054A6", "서해선": "#81A914", "GTX-A": "#A17800", "인천1호선": "#7CA8D5", "인천2호선": "#FD8100" };
     const strokeColor = hexColors[lineName] || "#6366f1";
-
-    // Dynamic replacement: replace black/dark colors in AI code with the official line color
-    innerSvgContent = innerSvgContent
-      .replace(/stroke="black"/gi, `stroke="${strokeColor}"`)
-      .replace(/stroke="#000000"/gi, `stroke="${strokeColor}"`)
-      .replace(/stroke="#000"/gi, `stroke="${strokeColor}"`)
-      .replace(/fill="black"/gi, `fill="${strokeColor}"`)
-      .replace(/fill="#000000"/gi, `fill="${strokeColor}"`)
-      .replace(/fill="#000"/gi, `fill="${strokeColor}"`);
+    innerSvgContent = innerSvgContent.replace(/stroke="black"/gi, `stroke="${strokeColor}"`).replace(/stroke="#000000"/gi, `stroke="${strokeColor}"`).replace(/stroke="#000"/gi, `stroke="${strokeColor}"`).replace(/fill="black"/gi, `fill="${strokeColor}"`).replace(/fill="#000000"/gi, `fill="${strokeColor}"`).replace(/fill="#000"/gi, `fill="${strokeColor}"`);
     
-    // Construct the ultimate hybrid SVG stamp
-    const finalSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
-  <!-- Outer Borders -->
-  <circle cx="50" cy="50" r="46" fill="none" stroke="${strokeColor}" stroke-width="2.5" />
-  <circle cx="50" cy="50" r="41" fill="none" stroke="${strokeColor}" stroke-width="1" stroke-dasharray="2 1.5" />
-  <circle cx="50" cy="50" r="30" fill="none" stroke="${strokeColor}" stroke-width="0.8" />
-  
-  <!-- Outer Curved Text -->
-  <path id="curveTop" d="M 18 50 A 32 32 0 0 1 82 50" fill="none" stroke="none" />
-  <path id="curveBottom" d="M 14 50 A 36 36 0 0 0 86 50" fill="none" stroke="none" />
-  
-  <text font-family="'Plus Jakarta Sans', sans-serif" font-size="5" font-weight="800" fill="${strokeColor}">
-    <textPath href="#curveTop" startOffset="50%" text-anchor="middle">SEOUL SUBWAY STAMP</textPath>
-  </text>
-  <text font-family="'Plus Jakarta Sans', sans-serif" font-size="5.5" font-weight="800" fill="${strokeColor}">
-    <textPath href="#curveBottom" startOffset="50%" text-anchor="middle">${stationName}역</textPath>
-  </text>
-  
-  <!-- Central Symbol (AI Generated Engraving) -->
-  <g stroke="${strokeColor}" stroke-width="1.2" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    const finalSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="100%" height="100%">
+  <circle cx="500" cy="500" r="480" fill="none" stroke="${strokeColor}" stroke-width="25" />
+  <circle cx="500" cy="500" r="435" fill="none" stroke="${strokeColor}" stroke-width="10" stroke-dasharray="30 20" />
+  <circle cx="500" cy="500" r="320" fill="none" stroke="${strokeColor}" stroke-width="10" />
+  <path id="curveTop" d="M 140 500 A 360 360 0 0 1 860 500" fill="none" stroke="none" />
+  <path id="curveBottom" d="M 105 500 A 395 395 0 0 0 895 500" fill="none" stroke="none" />
+  <text font-family="'Plus Jakarta Sans', sans-serif" font-size="55" font-weight="800" fill="${strokeColor}"><textPath href="#curveTop" startOffset="50%" text-anchor="middle">SEOUL SUBWAY STAMP</textPath></text>
+  <text font-family="'Plus Jakarta Sans', sans-serif" font-size="55" font-weight="800" fill="${strokeColor}"><textPath href="#curveBottom" startOffset="50%" text-anchor="middle">${stationName}역</textPath></text>
+  <g stroke="${strokeColor}" stroke-width="12" fill="none" stroke-linejoin="round" stroke-linecap="round">
     ${innerSvgContent}
   </g>
 </svg>`;

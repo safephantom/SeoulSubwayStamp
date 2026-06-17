@@ -30,7 +30,8 @@ export default function StampBook({ stations, collectedStamps, onSelectStamp }) 
       const matchesLine = selectedLine === '전체' || station.lines.includes(selectedLine);
       
       // 3. Status filter
-      const isCollected = !!collectedStamps[station.id];
+      const collectedLines = station.lines.filter(line => !!collectedStamps[`${station.id}_${line}`]);
+      const isCollected = collectedLines.length > 0;
       const matchesStatus = 
         statusFilter === 'all' || 
         (statusFilter === 'collected' && isCollected) || 
@@ -77,7 +78,7 @@ export default function StampBook({ stations, collectedStamps, onSelectStamp }) 
         <div>
           <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
             <div style={{ 
-              width: `${collectedPercentage}%`, 
+              width: `${Math.min(parseFloat(collectedPercentage), 100)}%`, 
               height: '100%', 
               background: 'linear-gradient(90deg, var(--color-primary) 0%, #a855f7 100%)',
               borderRadius: '4px',
@@ -185,10 +186,13 @@ export default function StampBook({ stations, collectedStamps, onSelectStamp }) 
 
         <div className="stamp-grid">
           {visibleStations.map(station => {
-            const stamp = collectedStamps[station.id];
-            const isCollected = !!stamp;
-            const primaryLine = station.lines[0];
-            const lineColor = getLineColor(primaryLine);
+            const collectedLines = station.lines.filter(line => !!collectedStamps[`${station.id}_${line}`]);
+            const isCollected = collectedLines.length > 0;
+            
+            // Representative line to show (default to first collected line, or primary line if none collected)
+            const displayLine = collectedLines[0] || station.lines[0];
+            const stamp = collectedStamps[`${station.id}_${displayLine}`];
+            const lineColor = getLineColor(displayLine);
 
             return (
               <div 
@@ -199,7 +203,8 @@ export default function StampBook({ stations, collectedStamps, onSelectStamp }) 
                   flexDirection: 'column',
                   alignItems: 'center',
                   gap: '6px',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  position: 'relative'
                 }}
               >
                 {/* Stamp Badge Visual */}
@@ -209,14 +214,15 @@ export default function StampBook({ stations, collectedStamps, onSelectStamp }) 
                     width: '76px',
                     height: '76px',
                     borderColor: !isCollected ? `${lineColor}44` : 'transparent',
-                    background: isCollected ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.01)'
+                    background: isCollected ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.01)',
+                    position: 'relative'
                   }}
                 >
                   {isCollected ? (
                     <div className="stamp-svg-container">
                       <div 
                         dangerouslySetInnerHTML={{ 
-                          __html: stamp.svgContent || generateDefaultStampSVG(station.name, primaryLine) 
+                          __html: stamp.svgContent || generateDefaultStampSVG(station.name, displayLine) 
                         }} 
                         style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       />
@@ -242,8 +248,41 @@ export default function StampBook({ stations, collectedStamps, onSelectStamp }) 
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
                       <Lock size={14} style={{ color: `${lineColor}88` }} />
                       <span style={{ fontSize: '8px', color: `${lineColor}bb`, fontWeight: '700' }}>
-                        {primaryLine.replace('호선', '')}
+                        {displayLine.replace('호선', '')}
                       </span>
+                    </div>
+                  )}
+
+                  {/* Interchange progress dots for transit stations */}
+                  {station.lines.length > 1 && (
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '2px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      display: 'flex',
+                      gap: '3px',
+                      background: 'rgba(10, 11, 16, 0.8)',
+                      padding: '2px 6px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.06)'
+                    }}>
+                      {station.lines.map(line => {
+                        const isLineCollected = !!collectedStamps[`${station.id}_${line}`];
+                        return (
+                          <span 
+                            key={line} 
+                            style={{
+                              width: '6px',
+                              height: '6px',
+                              borderRadius: '50%',
+                              background: isLineCollected ? getLineColor(line) : 'rgba(255,255,255,0.15)',
+                              transition: 'background 0.3s'
+                            }} 
+                            title={`${line}: ${isLineCollected ? '수집 완료' : '미수집'}`}
+                          />
+                        );
+                      })}
                     </div>
                   )}
                 </div>
