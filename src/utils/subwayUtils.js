@@ -120,23 +120,27 @@ export const generateGeminiAIStamp = async (apiKey, model = "gemini-2.5-flash", 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   
   const prompt = `지하철역 이름: ${stationName} (${lineName})
-이 역의 역사, 문화, 주변 유명한 랜드마크, 혹은 지역적 특색을 상징하는 동그란 모양의 '클래식 지하철 도장(Stamp)'의 SVG 코드를 작성해줘.
+이 역의 역사, 문화, 주변 유명한 랜드마크, 혹은 지역적 특색을 상징하는 동그란 모양의 '클래식 지하철 도장(Stamp)'의 중앙에 들어갈 벡터 일러스트(Symbol)를 SVG 요소로 그려줘.
 
-[시각적 구성 및 디자인 요구사항]
-1. **클래식 스탬프 레이아웃**:
-   - 외부 테두리: 두꺼운 외각 원(stroke-width: 2.5)과 안쪽의 얇은 점선 원(stroke-dasharray: 2 1.5)이 겹쳐진 이중 원 구조로 아날로그 스탬프 느낌을 극대화해줘.
-   - 텍스트 배치: 상단 곡선에는 "SEOUL SUBWAY STAMP"를, 하단 곡선에는 "${stationName}역" 또는 영문 역명을 배치해줘. (<path id="textPath-top/bottom">와 <textPath> 요소를 활용하여 글자가 원형 테두리를 따라 예쁘게 흐르도록 구현할 것)
-   - 중앙 심볼: 중앙 영역(50, 50)에 해당 역의 랜드마크나 상징물(예: 성수역은 정교한 수제화 구두, 경복궁역은 세련된 광화문/한옥 기와 실루엣 등)을 단순 원/네모가 아닌 여러 패스(<path>)의 조화로운 조합으로 정성스럽게 묘사해줘. 모든 중앙 심볼은 <g transform="translate(50, 50) scale(...)"> 등으로 묶어 크기와 위치를 중앙에 정확히 맞춰줘.
-2. **색상 및 스타일**:
-   - 해당 지하철 노선 상징색(${lineName}) 또는 스탬프 감성에 어울리는 단색(Monochrome) 또는 투톤(Two-tone)만 사용하여 아날로그 잉크 도장의 느낌을 살려줘.
+[시각적 스타일 요구사항 - 정교한 동판화 및 펜 선화 스타일]
+1. **단순한 평면 도형 금지**: 
+   - 단순한 원, 직사각형 한두 개로 구성된 유치하고 성의 없는 디자인(어린이 그림 같은 수준)은 절대 피해야 해.
+   - 오래된 지폐나 클래식 동판화(copperplate print)에 들어가는 정교한 **세밀 라인 아트(Engraving / Fine Line Art)** 스타일로 그려줘.
+   - 평면적인 면 채우기보다는, 촘촘한 평행선 패턴(Hatching)이나 미세한 빗금(Cross-hatching), 방사형 선들을 여러 개 엮어서 음영과 디테일한 입체감(Shading)을 직접 묘사해줘.
+   - 예: 올림픽공원역이면 평화의 문의 날개형 구조물 기둥과 디테일한 윤곽선을 조밀한 평행선 음영과 함께 묘사.
+2. **구도 및 중앙 정렬**:
+   - 뷰박스는 0 0 100 100 기준이야.
+   - 일러스트의 모든 구성 요소는 중앙 (50, 50)을 기준으로 모여야 하며, 반경 22 이내의 보이지 않는 가상 원 영역 안에 꽉 차되 이를 절대 벗어나지 않도록 조밀하게 그려줘.
+3. **반환할 SVG 태그**:
+   - 최상위 <svg> 태그나 <style>, <metadata> 등은 절대 생성하지 마. 우리가 제공하는 고정 템플릿의 <g> 그룹 태그 안에 바로 삽입될 거야.
+   - 오직 <path>, <circle>, <rect>, <line>, <polygon> 등 디자인을 구성하는 순수 도형 태그들만 반환해줘.
 
 [출력 형식 및 스토리 요구사항]
-1. 다른 설명 텍스트 없이 오직 마크다운 코드 블록(\`\`\`xml ... \`\`\`)으로 감싼 SVG 코드만 출력해줘.
-2. **스토리(Story) 예시 규격**:
+1. 다른 설명 텍스트 없이 오직 마크다운 코드 블록(\`\`\`xml ... \`\`\`)으로 감싸서 생성된 도형 태그들만 출력해줘.
+2. **스토리(Story) 규격**:
    - 도장의 맨 마지막 라인에 주석 형식으로 이 도장의 상징적 의미와 역의 스토리를 담아줘.
    - 예시: <!-- story: 성수역의 오랜 수제화 거리 역사와 장인정신을 클래식한 가죽 구두 실루엣으로 담아내고, 빈티지한 레드 잉크 레이아웃으로 도시의 산업 문화적 가치를 우아하게 표현한 도장입니다. -->
-   - 위 예시처럼 역의 역사/문화적 가치와 도장 속 상징물의 의미를 엮어 품격 있는 2~3문장(100자 내외)으로 작성해줘.
-3. SVG 내부의 XML 선언(<?xml...?>)이나 <!DOCTYPE>은 절대 포함하지 말아줘.`;
+   - 위 예시처럼 역의 역사/문화적 가치와 도장 속 상징물의 의미를 엮어 품격 있는 2~3문장(100자 내외)으로 작성해줘.`;
   
   const requestBody = {
     contents: [
@@ -151,7 +155,7 @@ export const generateGeminiAIStamp = async (apiKey, model = "gemini-2.5-flash", 
     generationConfig: {
       temperature: 0.2,
       topP: 0.95,
-      maxOutputTokens: 8192
+      maxOutputTokens: 4096
     }
   };
 
@@ -179,26 +183,91 @@ export const generateGeminiAIStamp = async (apiKey, model = "gemini-2.5-flash", 
       console.warn("Gemini generation finished with non-STOP reason:", data.candidates[0].finishReason);
     }
 
-    // Multi-fallback super robust SVG parsing
-    let svgContent = "";
-    const lowerText = generatedText.toLowerCase();
-    const startIdx = lowerText.indexOf("<svg");
-    const endIdx = lowerText.lastIndexOf("</svg>");
-
-    if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-      svgContent = generatedText.substring(startIdx, endIdx + 6);
-      
-      // Clean up markdown block wrappers if they got parsed inside
-      svgContent = svgContent.replace(/```[a-zA-Z0-9]*/g, "").trim();
-      
-      // Trim any trailing/leading whitespaces
-      const cleanStartIdx = svgContent.toLowerCase().indexOf("<svg");
-      if (cleanStartIdx !== -1) {
-        svgContent = svgContent.substring(cleanStartIdx);
-      }
+    // Extract inside elements from XML markdown block
+    let innerSvgContent = "";
+    const blockStart = generatedText.indexOf("```xml");
+    const blockEnd = generatedText.lastIndexOf("```");
+    
+    if (blockStart !== -1 && blockEnd !== -1 && blockEnd > blockStart) {
+      innerSvgContent = generatedText.substring(blockStart + 6, blockEnd).trim();
     } else {
-      throw new Error("올바른 SVG 코드를 찾을 수 없습니다. API 응답을 확인하세요.");
+      const genericStart = generatedText.indexOf("```");
+      const genericEnd = generatedText.lastIndexOf("```");
+      if (genericStart !== -1 && genericEnd !== -1 && genericEnd > genericStart) {
+        innerSvgContent = generatedText.substring(genericStart + 3, genericEnd).trim();
+      } else {
+        innerSvgContent = generatedText.trim();
+      }
     }
+    
+    // Strip root <svg> tag if Gemini still generated it
+    const lowerInner = innerSvgContent.toLowerCase();
+    const svgOpenIdx = lowerInner.indexOf("<svg");
+    if (svgOpenIdx !== -1) {
+      const openTagEnd = innerSvgContent.indexOf(">", svgOpenIdx);
+      const svgCloseIdx = lowerInner.lastIndexOf("</svg>");
+      if (openTagEnd !== -1 && svgCloseIdx !== -1 && svgCloseIdx > openTagEnd) {
+        innerSvgContent = innerSvgContent.substring(openTagEnd + 1, svgCloseIdx).trim();
+      }
+    }
+    
+    // Remove DOCTYPE or XML declarations
+    innerSvgContent = innerSvgContent.replace(/<\?xml[\s\S]*?\?>/g, "");
+    innerSvgContent = innerSvgContent.replace(/<!DOCTYPE[\s\S]*?>/g, "");
+    
+    // Parse line colors to combine inside the local template
+    const hexColors = {
+      "1호선": "#0052A4",
+      "2호선": "#00A84D",
+      "3호선": "#EF7C1C",
+      "4호선": "#00A2D1",
+      "5호선": "#996CAC",
+      "6호선": "#CD7C2F",
+      "7호선": "#747F28",
+      "8호선": "#E6186C",
+      "9호선": "#BDB092",
+      "수인분당선": "#F2A900",
+      "신분당선": "#D4003B",
+      "경의중앙선": "#77C4A3",
+      "공항철도": "#0090D2",
+      "경춘선": "#0C8E72",
+      "우이신설선": "#B0C4DE",
+      "신림선": "#6789CA",
+      "김포골드라인": "#AD8600",
+      "용인경전철": "#509F3D",
+      "의정부경전철": "#FDA600",
+      "경강선": "#0054A6",
+      "서해선": "#81A914",
+      "GTX-A": "#A17800",
+      "인천1호선": "#7CA8D5",
+      "인천2호선": "#FD8100",
+    };
+    
+    const strokeColor = hexColors[lineName] || "#6366f1";
+    
+    // Construct the ultimate hybrid SVG stamp
+    const finalSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <!-- Outer Borders -->
+  <circle cx="50" cy="50" r="46" fill="none" stroke="${strokeColor}" stroke-width="2.5" />
+  <circle cx="50" cy="50" r="41" fill="none" stroke="${strokeColor}" stroke-width="1" stroke-dasharray="2 1.5" />
+  <circle cx="50" cy="50" r="30" fill="none" stroke="${strokeColor}" stroke-width="0.8" />
+  
+  <!-- Outer Curved Text -->
+  <path id="curveTop" d="M 18 50 A 32 32 0 0 1 82 50" fill="none" stroke="none" />
+  <path id="curveBottom" d="M 82 50 A 32 32 0 0 1 18 50" fill="none" stroke="none" />
+  
+  <text font-family="'Plus Jakarta Sans', sans-serif" font-size="5" font-weight="800" fill="${strokeColor}">
+    <textPath href="#curveTop" startOffset="50%" text-anchor="middle">SEOUL SUBWAY STAMP</textPath>
+  </text>
+  <text font-family="'Plus Jakarta Sans', sans-serif" font-size="5.5" font-weight="800" fill="${strokeColor}">
+    <textPath href="#curveBottom" startOffset="50%" text-anchor="middle">${stationName}역</textPath>
+  </text>
+  
+  <!-- Central Symbol (AI Generated Engraving) -->
+  <g stroke="${strokeColor}" stroke-width="1.2" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    ${innerSvgContent}
+  </g>
+</svg>`;
 
     // Try to extract a short description/story from comments
     let story = `${stationName}의 역사를 담은 AI 맞춤형 도장입니다.`;
@@ -206,7 +275,6 @@ export const generateGeminiAIStamp = async (apiKey, model = "gemini-2.5-flash", 
     if (commentMatch) {
       story = commentMatch[1].trim();
     } else {
-      // Fallback: Find any commentary text around the blocks
       const cleanText = generatedText.replace(/```[\s\S]*?```/g, "").trim();
       if (cleanText && cleanText.length > 10 && cleanText.length < 200) {
         story = cleanText.replace(/<!--[\s\S]*?-->/g, "").trim();
@@ -214,7 +282,7 @@ export const generateGeminiAIStamp = async (apiKey, model = "gemini-2.5-flash", 
     }
 
     return {
-      svg: svgContent,
+      svg: finalSvg,
       story: story
     };
   } catch (error) {
