@@ -131,8 +131,9 @@ export const generateGeminiAIStamp = async (apiKey, model = "gemini-2.5-flash", 
 3. 색상은 해당 호선의 상징색 또는 스탬프에 어울리는 색상 1~2개만 사용해서 잉크가 번지거나 찍힌 듯한 아날로그 빈티지 질감 느낌이 나도록 단색/투톤 스타일로 디자인해줘.
 4. 반응형 뷰박스(viewBox="0 0 100 100")를 사용하고 가로세로 비율을 1:1로 유지해줘.
 5. XML 선언 태그(<?xml ...?>)나 <!DOCTYPE ...> 태그는 웹 임베드 오류를 일으키므로 절대 포함하지 말아줘.
-6. 이 도장의 상징과 테마에 대한 짧은 한 줄 설명(40자 내외)을 주석(예: <!-- story: 성수동 구두 골목의 역사와 장인 정신을 표현한 클래식 도장 -->) 형식으로 SVG 코드 맨 끝에 포함시켜줘.`;
-
+6. 이 도장의 상징과 테마에 대한 짧은 한 줄 설명(40자 내외)을 주석(예: <!-- story: 성수동 구두 골목의 역사와 장인 정신을 표현한 클래식 도장 -->) 형식으로 SVG 코드 맨 끝에 포함시켜줘.
+7. SVG 코드의 크기가 과도하게 커져 생성 중간에 응답이 잘리지 않도록, 불필요하게 복잡하고 긴 패스 데이터(수천 자리의 d 속성 값 등)는 피하고 미니멀하고 아름답게 표현해줘.`;
+  
   const requestBody = {
     contents: [
       {
@@ -146,7 +147,7 @@ export const generateGeminiAIStamp = async (apiKey, model = "gemini-2.5-flash", 
     generationConfig: {
       temperature: 0.2,
       topP: 0.95,
-      maxOutputTokens: 2048
+      maxOutputTokens: 8192
     }
   };
 
