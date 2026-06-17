@@ -35,15 +35,18 @@ Error generating stack: `+e.message+`
 이 역의 역사, 문화, 주변 유명한 랜드마크, 혹은 지역적 특색을 상징하는 동그란 모양의 '클래식 지하철 도장(Stamp)'의 중앙에 들어갈 벡터 일러스트(Symbol)를 SVG 요소로 그려줘.
 
 [시각적 스타일 요구사항 - 정교한 동판화 및 펜 선화 스타일]
-1. **단순한 평면 도형 금지**: 
-   - 단순한 원, 직사각형 한두 개로 구성된 유치하고 성의 없는 디자인(어린이 그림 같은 수준)은 절대 피해야 해.
+1. **디테일한 묘사와 단순함 배제**: 
+   - 단순한 원, 직사각형 한두 개로 구성된 성의 없는 디자인(어린이 그림 수준)은 절대 피해야 해.
    - 오래된 지폐나 클래식 동판화(copperplate print)에 들어가는 정교한 **세밀 라인 아트(Engraving / Fine Line Art)** 스타일로 그려줘.
-   - 평면적인 면 채우기보다는, 촘촘한 평행선 패턴(Hatching)이나 미세한 빗금(Cross-hatching), 방사형 선들을 여러 개 엮어서 음영과 디테일한 입체감(Shading)을 직접 묘사해줘.
-   - 예: 올림픽공원역이면 평화의 문의 날개형 구조물 기둥과 디테일한 윤곽선을 조밀한 평행선 음영과 함께 묘사.
-2. **구도 및 중앙 정렬**:
+   - 선으로만 그리는 것이 아니라, 기단이나 지붕, 상징물의 주요 단면에 색을 채워 시각적 무게감(면 분할)을 주고 싶다면 \`fill="black"\`을 적극적으로 사용해줘.
+   - 선(Outline)만 표현할 영역은 \`fill="none" stroke="black"\`으로 지정하고, 색을 채울(Fill) 영역은 \`fill="black" stroke="none"\`(또는 stroke="black")으로 표현해줘.
+   - (중요) 스타일 속성(\`style="..."\`)은 파싱 오류를 일으키므로 절대 사용하지 말고, \`stroke\`, \`fill\`, \`stroke-width\` 등 개별 속성을 직접 사용할 것.
+2. **반복 생성 루프 방지**:
+   - 디테일을 살리되, 빗금선(Hatching)을 무한히 그리는 반복 루프에 빠져 출력이 중간에 끊기지 않도록 해줘. 전체 패스(\`<path>\` 등) 개수는 최대 25~35개 내외로 조절하여 1,200토큰 이내로 간결하면서도 완성도 있게 표현해줘.
+3. **구도 및 중앙 정렬**:
    - 뷰박스는 0 0 100 100 기준이야.
    - 일러스트의 모든 구성 요소는 중앙 (50, 50)을 기준으로 모여야 하며, 반경 22 이내의 보이지 않는 가상 원 영역 안에 꽉 차되 이를 절대 벗어나지 않도록 조밀하게 그려줘.
-3. **반환할 SVG 태그**:
+4. **반환할 SVG 태그**:
    - 최상위 <svg> 태그나 <style>, <metadata> 등은 절대 생성하지 마. 우리가 제공하는 고정 템플릿의 <g> 그룹 태그 안에 바로 삽입될 거야.
    - 오직 <path>, <circle>, <rect>, <line>, <polygon> 등 디자인을 구성하는 순수 도형 태그들만 반환해줘.
 
@@ -52,7 +55,7 @@ Error generating stack: `+e.message+`
 2. **스토리(Story) 규격**:
    - 도장의 맨 마지막 라인에 주석 형식으로 이 도장의 상징적 의미와 역의 스토리를 담아줘.
    - 예시: <!-- story: 성수역의 오랜 수제화 거리 역사와 장인정신을 클래식한 가죽 구두 실루엣으로 담아내고, 빈티지한 레드 잉크 레이아웃으로 도시의 산업 문화적 가치를 우아하게 표현한 도장입니다. -->
-   - 위 예시처럼 역의 역사/문화적 가치와 도장 속 상징물의 의미를 엮어 품격 있는 2~3문장(100자 내외)으로 작성해줘.`}]}],generationConfig:{temperature:.2,topP:.95,maxOutputTokens:4096}};try{let e=await fetch(i,{method:`POST`,headers:{"Content-Type":`application/json`},body:JSON.stringify(a)});if(!e.ok){let t=await e.json().catch(()=>({}));throw Error(t.error?.message||`API error (${e.status})`)}let t=await e.json();console.log(`Gemini API Full Response:`,t);let o=t.candidates?.[0]?.content?.parts?.[0]?.text||``;console.log(`Gemini Raw Response Text:`,o),t.candidates?.[0]?.finishReason&&t.candidates[0].finishReason!==`STOP`&&console.warn(`Gemini generation finished with non-STOP reason:`,t.candidates[0].finishReason);let s=``,c=o.indexOf("```xml"),l=o.lastIndexOf("```");if(c!==-1&&l!==-1&&l>c)s=o.substring(c+6,l).trim();else{let e=o.indexOf("```"),t=o.lastIndexOf("```");s=e!==-1&&t!==-1&&t>e?o.substring(e+3,t).trim():o.trim()}let u=s.toLowerCase(),d=u.indexOf(`<svg`);if(d!==-1){let e=s.indexOf(`>`,d),t=u.lastIndexOf(`</svg>`);e!==-1&&t!==-1&&t>e&&(s=s.substring(e+1,t).trim())}s=s.replace(/<\?xml[\s\S]*?\?>/g,``),s=s.replace(/<!DOCTYPE[\s\S]*?>/g,``);let f={"1호선":`#0052A4`,"2호선":`#00A84D`,"3호선":`#EF7C1C`,"4호선":`#00A2D1`,"5호선":`#996CAC`,"6호선":`#CD7C2F`,"7호선":`#747F28`,"8호선":`#E6186C`,"9호선":`#BDB092`,수인분당선:`#F2A900`,신분당선:`#D4003B`,경의중앙선:`#77C4A3`,공항철도:`#0090D2`,경춘선:`#0C8E72`,우이신설선:`#B0C4DE`,신림선:`#6789CA`,김포골드라인:`#AD8600`,용인경전철:`#509F3D`,의정부경전철:`#FDA600`,경강선:`#0054A6`,서해선:`#81A914`,"GTX-A":`#A17800`,인천1호선:`#7CA8D5`,인천2호선:`#FD8100`}[r]||`#6366f1`,p=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+   - 위 예시처럼 역의 역사/문화적 가치와 도장 속 상징물의 의미를 엮어 품격 있는 2~3문장(100자 내외)으로 작성해줘.`}]}],generationConfig:{temperature:.2,topP:.95,maxOutputTokens:8192}};try{let e=await fetch(i,{method:`POST`,headers:{"Content-Type":`application/json`},body:JSON.stringify(a)});if(!e.ok){let t=await e.json().catch(()=>({}));throw Error(t.error?.message||`API error (${e.status})`)}let t=await e.json();console.log(`Gemini API Full Response:`,t);let o=t.candidates?.[0]?.content?.parts?.[0]?.text||``;console.log(`Gemini Raw Response Text:`,o),t.candidates?.[0]?.finishReason&&t.candidates[0].finishReason!==`STOP`&&console.warn(`Gemini generation finished with non-STOP reason:`,t.candidates[0].finishReason);let s=``,c=o.indexOf("```xml"),l=o.lastIndexOf("```");if(c!==-1&&l!==-1&&l>c)s=o.substring(c+6,l).trim();else{let e=o.indexOf("```"),t=o.lastIndexOf("```");s=e!==-1&&t!==-1&&t>e?o.substring(e+3,t).trim():o.trim()}let u=s.toLowerCase(),d=u.indexOf(`<svg`);if(d!==-1){let e=s.indexOf(`>`,d),t=u.lastIndexOf(`</svg>`);e!==-1&&t!==-1&&t>e&&(s=s.substring(e+1,t).trim())}s=s.replace(/<\?xml[\s\S]*?\?>/g,``),s=s.replace(/<!DOCTYPE[\s\S]*?>/g,``);let f={"1호선":`#0052A4`,"2호선":`#00A84D`,"3호선":`#EF7C1C`,"4호선":`#00A2D1`,"5호선":`#996CAC`,"6호선":`#CD7C2F`,"7호선":`#747F28`,"8호선":`#E6186C`,"9호선":`#BDB092`,수인분당선:`#F2A900`,신분당선:`#D4003B`,경의중앙선:`#77C4A3`,공항철도:`#0090D2`,경춘선:`#0C8E72`,우이신설선:`#B0C4DE`,신림선:`#6789CA`,김포골드라인:`#AD8600`,용인경전철:`#509F3D`,의정부경전철:`#FDA600`,경강선:`#0054A6`,서해선:`#81A914`,"GTX-A":`#A17800`,인천1호선:`#7CA8D5`,인천2호선:`#FD8100`}[r]||`#6366f1`;s=s.replace(/stroke="black"/gi,`stroke="${f}"`).replace(/stroke="#000000"/gi,`stroke="${f}"`).replace(/stroke="#000"/gi,`stroke="${f}"`).replace(/fill="black"/gi,`fill="${f}"`).replace(/fill="#000000"/gi,`fill="${f}"`).replace(/fill="#000"/gi,`fill="${f}"`);let p=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
   <!-- Outer Borders -->
   <circle cx="50" cy="50" r="46" fill="none" stroke="${f}" stroke-width="2.5" />
   <circle cx="50" cy="50" r="41" fill="none" stroke="${f}" stroke-width="1" stroke-dasharray="2 1.5" />
