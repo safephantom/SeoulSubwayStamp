@@ -213,12 +213,12 @@ export default function StampDetailModal({
               {isCollected ? (
                 <div 
                   dangerouslySetInnerHTML={{ __html: stamp.svgContent }} 
-                  style={{ width: '85%', height: '85%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 />
               ) : tempStamp ? (
                 <div 
                   dangerouslySetInnerHTML={{ __html: tempStamp.svgContent }} 
-                  style={{ width: '85%', height: '85%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 />
               ) : (
                 <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
