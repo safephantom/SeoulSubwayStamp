@@ -53,9 +53,6 @@ export const calculateDistance = (lat1, lon1, lat2, lon2) => {
 export const generateDefaultStampSVG = (stationName, lineName, dateString = "UNLOCKED") => {
   const color = getLineColor(lineName);
   
-  // Clean color for inline svg presentation (since CSS variables don't always resolve inside img or some contexts,
-  // we use standard hex mapping or inline style. Here we pass the variable directly which works if rendered as raw JSX/inline SVG)
-  
   // Let's resolve the actual colors in hex to be safe when stored as static SVG strings in LocalStorage!
   const hexColors = {
     "1호선": "#0052A4",
@@ -123,15 +120,18 @@ export const generateGeminiAIStamp = async (apiKey, model = "gemini-2.5-flash", 
 이 역의 역사, 문화, 주변 유명한 랜드마크, 혹은 지역적 특색을 상징하는 동그란 모양의 '클래식 지하철 도장(Stamp)'의 중앙에 들어갈 벡터 일러스트(Symbol)를 SVG 요소로 그려줘.
 
 [시각적 스타일 요구사항 - 정교한 동판화 및 펜 선화 스타일]
-1. **단순한 평면 도형 금지**: 
-   - 단순한 원, 직사각형 한두 개로 구성된 유치하고 성의 없는 디자인(어린이 그림 같은 수준)은 절대 피해야 해.
+1. **디테일한 묘사와 단순함 배제**: 
+   - 단순한 원, 직사각형 한두 개로 구성된 성의 없는 디자인(어린이 그림 수준)은 절대 피해야 해.
    - 오래된 지폐나 클래식 동판화(copperplate print)에 들어가는 정교한 **세밀 라인 아트(Engraving / Fine Line Art)** 스타일로 그려줘.
-   - 평면적인 면 채우기보다는, 촘촘한 평행선 패턴(Hatching)이나 미세한 빗금(Cross-hatching), 방사형 선들을 여러 개 엮어서 음영과 디테일한 입체감(Shading)을 직접 묘사해줘.
-   - 예: 올림픽공원역이면 평화의 문의 날개형 구조물 기둥과 디테일한 윤곽선을 조밀한 평행선 음영과 함께 묘사.
-2. **구도 및 중앙 정렬**:
+   - 선으로만 그리는 것이 아니라, 기단이나 지붕, 상징물의 주요 단면에 색을 채워 시각적 무게감(면 분할)을 주고 싶다면 \`fill="black"\`을 적극적으로 사용해줘.
+   - 선(Outline)만 표현할 영역은 \`fill="none" stroke="black"\`으로 지정하고, 색을 채울(Fill) 영역은 \`fill="black" stroke="none"\`(또는 stroke="black")으로 표현해줘.
+   - (중요) 스타일 속성(\`style="..."\`)은 파싱 오류를 일으키므로 절대 사용하지 말고, \`stroke\`, \`fill\`, \`stroke-width\` 등 개별 속성을 직접 사용할 것.
+2. **반복 생성 루프 방지**:
+   - 디테일을 살리되, 빗금선(Hatching)을 무한히 그리는 반복 루프에 빠져 출력이 중간에 끊기지 않도록 해줘. 전체 패스(\`<path>\` 등) 개수는 최대 25~35개 내외로 조절하여 1,200토큰 이내로 간결하면서도 완성도 있게 표현해줘.
+3. **구도 및 중앙 정렬**:
    - 뷰박스는 0 0 100 100 기준이야.
    - 일러스트의 모든 구성 요소는 중앙 (50, 50)을 기준으로 모여야 하며, 반경 22 이내의 보이지 않는 가상 원 영역 안에 꽉 차되 이를 절대 벗어나지 않도록 조밀하게 그려줘.
-3. **반환할 SVG 태그**:
+4. **반환할 SVG 태그**:
    - 최상위 <svg> 태그나 <style>, <metadata> 등은 절대 생성하지 마. 우리가 제공하는 고정 템플릿의 <g> 그룹 태그 안에 바로 삽입될 거야.
    - 오직 <path>, <circle>, <rect>, <line>, <polygon> 등 디자인을 구성하는 순수 도형 태그들만 반환해줘.
 
@@ -155,7 +155,7 @@ export const generateGeminiAIStamp = async (apiKey, model = "gemini-2.5-flash", 
     generationConfig: {
       temperature: 0.2,
       topP: 0.95,
-      maxOutputTokens: 4096
+      maxOutputTokens: 8192
     }
   };
 
@@ -244,6 +244,15 @@ export const generateGeminiAIStamp = async (apiKey, model = "gemini-2.5-flash", 
     };
     
     const strokeColor = hexColors[lineName] || "#6366f1";
+
+    // Dynamic replacement: replace black/dark colors in AI code with the official line color
+    innerSvgContent = innerSvgContent
+      .replace(/stroke="black"/gi, `stroke="${strokeColor}"`)
+      .replace(/stroke="#000000"/gi, `stroke="${strokeColor}"`)
+      .replace(/stroke="#000"/gi, `stroke="${strokeColor}"`)
+      .replace(/fill="black"/gi, `fill="${strokeColor}"`)
+      .replace(/fill="#000000"/gi, `fill="${strokeColor}"`)
+      .replace(/fill="#000"/gi, `fill="${strokeColor}"`);
     
     // Construct the ultimate hybrid SVG stamp
     const finalSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
@@ -290,4 +299,3 @@ export const generateGeminiAIStamp = async (apiKey, model = "gemini-2.5-flash", 
     throw error;
   }
 };
-
