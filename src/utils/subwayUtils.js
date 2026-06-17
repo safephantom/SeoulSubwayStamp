@@ -165,8 +165,15 @@ export const generateGeminiAIStamp = async (apiKey, model = "gemini-2.5-flash", 
     }
 
     const data = await response.json();
-    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    console.log("Gemini API Full Response:", data);
     
+    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    console.log("Gemini Raw Response Text:", generatedText);
+    
+    if (data.candidates?.[0]?.finishReason && data.candidates[0].finishReason !== "STOP") {
+      console.warn("Gemini generation finished with non-STOP reason:", data.candidates[0].finishReason);
+    }
+
     // Multi-fallback super robust SVG parsing
     let svgContent = "";
     const lowerText = generatedText.toLowerCase();
