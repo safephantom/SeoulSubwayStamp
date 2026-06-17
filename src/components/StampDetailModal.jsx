@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Calendar, MapPin, Sparkles, AlertCircle, RefreshCw, Trash2, ShieldAlert, Check } from 'lucide-react';
+import { X, Calendar, MapPin, Sparkles, AlertCircle, RefreshCw, Trash2, ShieldAlert, Check, Award } from 'lucide-react';
 import { getLineColor, generateDefaultStampSVG, generateGeminiAIStamp } from '../utils/subwayUtils';
 
 export default function StampDetailModal({ 
