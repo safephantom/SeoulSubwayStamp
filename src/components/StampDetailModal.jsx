@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Calendar, MapPin, Sparkles, AlertCircle, RefreshCw, Trash2, ShieldAlert, Check, Award } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Calendar, MapPin, Sparkles, AlertCircle, RefreshCw, Trash2, ShieldAlert, Check, Award, Download } from 'lucide-react';
 import { getLineColor, generateDefaultStampSVG, generateGeminiAIStamp } from '../utils/subwayUtils';
 
 export default function StampDetailModal({ 
@@ -15,10 +15,21 @@ export default function StampDetailModal({
   // Local state for the selected line in transit interchange stations
   const [activeLine, setActiveLine] = useState(station.lines[0]);
   
+  // Local state to navigate through multiple collected stamps for the active line
+  const [selectedStampIdx, setSelectedStampIdx] = useState(0);
+
+  // Reset states when active line changes
+  useEffect(() => {
+    setSelectedStampIdx(0);
+    setTempStamp(null);
+    setError(null);
+  }, [activeLine]);
+
   // Dynamically resolve the active stamp data based on the selected line
   const stampKey = `${station.id}_${activeLine}`;
-  const stamp = collectedStamps[stampKey];
-  const isCollected = !!stamp;
+  const stampsList = collectedStamps[stampKey] || [];
+  const isCollected = stampsList.length > 0;
+  const stamp = stampsList[selectedStampIdx] || null;
   const lineColor = getLineColor(activeLine);
   
   // Local state for the "Collect Flow" (temporary in-memory stamp before confirmation)
@@ -27,12 +38,6 @@ export default function StampDetailModal({
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
   const [error, setError] = useState(null);
-
-  // Reset tempStamp when active line changes
-  React.useEffect(() => {
-    setTempStamp(null);
-    setError(null);
-  }, [activeLine]);
 
   const formatCollectedDate = (isoString) => {
     if (!isoString) return '';
@@ -97,7 +102,7 @@ export default function StampDetailModal({
         });
       } else {
         // For existing stamp: update instantly in database
-        onSaveAIStamp(station.id, activeLine, result.svg, result.story, 'ai');
+        onSaveAIStamp(station.id, activeLine, result.svg, result.story, 'ai', stamp?.id);
       }
       
       setTimeout(() => {
@@ -128,23 +133,79 @@ export default function StampDetailModal({
   // Revert an existing AI stamp to offline default stamp
   const handleRevertToOffline = () => {
     if (window.confirm("도장 디자인을 기본 오프라인 디자인으로 변경하시겠습니까?")) {
-      const dateStr = stamp.collectedAt 
+      const dateStr = stamp && stamp.collectedAt 
         ? new Date(stamp.collectedAt).toLocaleDateString() 
         : new Date().toLocaleDateString();
       const defaultSvg = generateDefaultStampSVG(station.name, activeLine, dateStr);
       const defaultStory = `${station.name}에 도착하여 발급된 기본 오프라인 도장입니다. (호선: ${activeLine})`;
-      onSaveAIStamp(station.id, activeLine, defaultSvg, defaultStory, 'default');
+      onSaveAIStamp(station.id, activeLine, defaultSvg, defaultStory, 'default', stamp?.id);
     }
   };
 
   // Confirm collection and save to local storage
-  const handleConfirmSaveCollection = () => {
+  const handleConfirmSaveCollection = (mode = 'add') => {
     if (!tempStamp) return;
-    onConfirmCollect(station.id, activeLine, tempStamp.stampType, tempStamp.svgContent, tempStamp.story);
+    const replaceId = mode === 'replace' && stamp ? stamp.id : null;
+    onConfirmCollect(station.id, activeLine, tempStamp.stampType, tempStamp.svgContent, tempStamp.story, mode, replaceId);
   };
 
-  // A line is collectable if GPS is active and this specific line is not collected yet
-  const isLineCollectable = isCollectable && !isCollected;
+  // Download stamp in SVG or PNG format
+  const handleDownloadStamp = (format) => {
+    if (!stamp) return;
+    const filename = `${station.name}_${activeLine}_도장_${selectedStampIdx + 1}.${format}`;
+    if (format === 'svg') {
+      const blob = new Blob([stamp.svgContent], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } else if (format === 'png') {
+      const img = new Image();
+      const blob = new Blob([stamp.svgContent], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1000;
+        canvas.height = 1000;
+        const ctx = canvas.getContext('2d');
+        
+        ctx.drawImage(img, 0, 0, 1000, 1000);
+        
+        canvas.toBlob((pngBlob) => {
+          if (!pngBlob) {
+            alert('PNG 변환에 실패했습니다.');
+            return;
+          }
+          const pngUrl = URL.createObjectURL(pngBlob);
+          const link = document.createElement('a');
+          link.href = pngUrl;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(pngUrl);
+        }, 'image/png');
+        
+        URL.revokeObjectURL(url);
+      };
+      img.onerror = () => {
+        // Fallback to SVG
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename.replace('.png', '.svg');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      };
+      img.src = url;
+    }
+  };
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -191,7 +252,8 @@ export default function StampDetailModal({
             {station.lines.map((line) => {
               const isActive = line === activeLine;
               const lineBadgeColor = getLineColor(line);
-              const isLineCollected = !!collectedStamps[`${station.id}_${line}`];
+              const list = collectedStamps[`${station.id}_${line}`];
+              const isLineCollected = list && list.length > 0;
               
               return (
                 <button
@@ -235,7 +297,7 @@ export default function StampDetailModal({
           display: 'flex', 
           justifyContent: 'center', 
           alignItems: 'center', 
-          margin: '20px 0',
+          margin: '20px 0 10px 0',
           position: 'relative'
         }}>
           {loading ? (
@@ -274,31 +336,99 @@ export default function StampDetailModal({
                 position: 'relative'
               }}
             >
-              {isCollected ? (
-                <div 
-                  dangerouslySetInnerHTML={{ __html: stamp.svgContent }} 
-                  style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                />
-              ) : tempStamp ? (
+              {tempStamp ? (
                 <div 
                   dangerouslySetInnerHTML={{ __html: tempStamp.svgContent }} 
                   style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 />
+              ) : isCollected && stamp ? (
+                <div 
+                  dangerouslySetInnerHTML={{ __html: stamp.svgContent }} 
+                  style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                />
               ) : (
                 <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                  {isLineCollectable ? (
+                  {isCollectable ? (
                     <Award size={40} className="pulse-target" style={{ color: 'var(--color-success)', margin: '0 auto 8px' }} />
                   ) : (
                     <MapPin size={40} style={{ color: `${lineColor}44`, margin: '0 auto 8px' }} />
                   )}
                   <span style={{ fontSize: '12px', fontWeight: '600' }}>
-                    {isLineCollectable ? '도장 수집 대기 중' : '미수집 상태'}
+                    {isCollectable ? '도장 수집 대기 중' : '미수집 상태'}
                   </span>
                 </div>
               )}
             </div>
           )}
         </div>
+
+        {/* Pagination Dots & Navigation for Multiple Stamps */}
+        {isCollected && stampsList.length > 1 && !tempStamp && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '12px',
+            marginBottom: '20px'
+          }}>
+            <button
+              disabled={selectedStampIdx === 0}
+              onClick={() => setSelectedStampIdx(prev => prev - 1)}
+              style={{
+                background: selectedStampIdx === 0 ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.08)',
+                border: 'none',
+                color: selectedStampIdx === 0 ? 'var(--text-muted)' : 'white',
+                cursor: selectedStampIdx === 0 ? 'not-allowed' : 'pointer',
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '10px',
+                transition: 'all 0.2s'
+              }}
+            >
+              ◀
+            </button>
+            <div style={{ display: 'flex', gap: '5px' }}>
+              {stampsList.map((_, idx) => (
+                <span
+                  key={idx}
+                  onClick={() => setSelectedStampIdx(idx)}
+                  style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    background: idx === selectedStampIdx ? 'var(--color-primary)' : 'rgba(255,255,255,0.2)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                />
+              ))}
+            </div>
+            <button
+              disabled={selectedStampIdx === stampsList.length - 1}
+              onClick={() => setSelectedStampIdx(prev => prev + 1)}
+              style={{
+                background: selectedStampIdx === stampsList.length - 1 ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.08)',
+                border: 'none',
+                color: selectedStampIdx === stampsList.length - 1 ? 'var(--text-muted)' : 'white',
+                cursor: selectedStampIdx === stampsList.length - 1 ? 'not-allowed' : 'pointer',
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '10px',
+                transition: 'all 0.2s'
+              }}
+            >
+              ▶
+            </button>
+          </div>
+        )}
 
         {/* Station Name Details */}
         <div style={{ textAlign: 'center', marginBottom: '20px' }}>
@@ -310,25 +440,47 @@ export default function StampDetailModal({
         </div>
 
         {/* Dynamic Display Layout based on state */}
-        {isCollected ? (
+        {isCollected && !tempStamp ? (
           /* ========================================================================= */
           /* CASE 1: Already Collected Station - Show Details & Actions                 */
           /* ========================================================================= */
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div className="glass-card" style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(255,255,255,0.02)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
-                <Calendar size={14} style={{ color: 'var(--color-primary)' }} />
-                <span style={{ color: 'var(--text-secondary)' }}>수집 일시:</span>
-                <span style={{ fontWeight: '600', color: 'white' }}>{formatCollectedDate(stamp.collectedAt)}</span>
+            {stamp && (
+              <div className="glass-card" style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(255,255,255,0.02)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                  <Calendar size={14} style={{ color: 'var(--color-primary)' }} />
+                  <span style={{ color: 'var(--text-secondary)' }}>수집 일시:</span>
+                  <span style={{ fontWeight: '600', color: 'white' }}>{formatCollectedDate(stamp.collectedAt)}</span>
+                </div>
+                
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '10px' }}>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700' }}>스탬프 테마 설명 ({selectedStampIdx + 1}번째 도장):</p>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5', marginTop: '4px' }}>
+                    {stamp.story}
+                  </p>
+                </div>
+
+                {/* Download Buttons */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '10px', marginTop: '4px' }}>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => handleDownloadStamp('svg')}
+                    style={{ fontSize: '11px', padding: '8px', gap: '4px', minWidth: 'auto', background: 'rgba(255,255,255,0.04)' }}
+                  >
+                    <Download size={12} />
+                    <span>SVG 다운로드</span>
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => handleDownloadStamp('png')}
+                    style={{ fontSize: '11px', padding: '8px', gap: '4px', minWidth: 'auto', background: 'rgba(255,255,255,0.04)' }}
+                  >
+                    <Download size={12} />
+                    <span>PNG 다운로드</span>
+                  </button>
+                </div>
               </div>
-              
-              <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '10px' }}>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700' }}>스탬프 테마 설명:</p>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5', marginTop: '4px' }}>
-                  {stamp.story}
-                </p>
-              </div>
-            </div>
+            )}
 
             {/* Error Message if any */}
             {error && (
@@ -353,11 +505,11 @@ export default function StampDetailModal({
                   }}
                 >
                   <Sparkles size={14} fill="white" />
-                  <span>AI 도장 받기</span>
+                  <span>AI 도장 재생성</span>
                 </button>
 
                 {/* Revert to Offline Button */}
-                {stamp.stampType === 'ai' && (
+                {stamp && stamp.stampType === 'ai' && (
                   <button
                     className="btn btn-secondary"
                     onClick={handleRevertToOffline}
@@ -370,23 +522,25 @@ export default function StampDetailModal({
               </div>
 
               {/* Delete Stamp Button */}
-              <button
-                className="btn"
-                onClick={() => onDeleteStamp(station.id, activeLine)}
-                style={{
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  color: 'var(--color-danger)',
-                  border: '1px solid rgba(239, 68, 68, 0.15)',
-                  fontSize: '12px',
-                  padding: '10px'
-                }}
-              >
-                <Trash2 size={14} />
-                <span>도장 삭제하기</span>
-              </button>
+              {stamp && (
+                <button
+                  className="btn"
+                  onClick={() => onDeleteStamp(station.id, activeLine, stamp.id)}
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    color: 'var(--color-danger)',
+                    border: '1px solid rgba(239, 68, 68, 0.15)',
+                    fontSize: '12px',
+                    padding: '10px'
+                  }}
+                >
+                  <Trash2 size={14} />
+                  <span>이 도장 삭제하기</span>
+                </button>
+              )}
             </div>
           </div>
-        ) : isLineCollectable ? (
+        ) : isCollectable || tempStamp ? (
           /* ========================================================================= */
           /* CASE 2: Station is Collectable (GPS Match) - Collect Flow                  */
           /* ========================================================================= */
@@ -407,7 +561,7 @@ export default function StampDetailModal({
                 </div>
                 
                 <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  도장을 생성한 뒤 [도장 획득 확정]을 눌러 도장첩에 저장하세요.
+                  도장을 생성한 뒤 도장첩에 저장하세요.
                 </p>
 
                 {error && (
@@ -455,22 +609,56 @@ export default function StampDetailModal({
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
-                  {/* Confirm Collection and Save */}
-                  <button
-                    className="btn"
-                    onClick={handleConfirmSaveCollection}
-                    style={{
-                      background: 'var(--color-success)',
-                      color: 'white',
-                      boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
-                      padding: '12px',
-                      fontWeight: '700',
-                      fontSize: '14px'
-                    }}
-                  >
-                    <Check size={16} />
-                    <span>도장 획득 확정 (도장첩에 저장)</span>
-                  </button>
+                  {isCollected ? (
+                    /* Offer Replace vs Add if existing stamps are present */
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <button
+                        className="btn"
+                        onClick={() => handleConfirmSaveCollection('add')}
+                        style={{
+                          background: 'var(--color-success)',
+                          color: 'white',
+                          padding: '12px 6px',
+                          fontWeight: '700',
+                          fontSize: '12px'
+                        }}
+                      >
+                        <Check size={14} />
+                        <span>새 도장으로 추가</span>
+                      </button>
+                      <button
+                        className="btn"
+                        onClick={() => handleConfirmSaveCollection('replace')}
+                        style={{
+                          background: 'var(--color-primary)',
+                          color: 'white',
+                          padding: '12px 6px',
+                          fontWeight: '700',
+                          fontSize: '12px'
+                        }}
+                      >
+                        <RefreshCw size={14} />
+                        <span>현재 도장 대체</span>
+                      </button>
+                    </div>
+                  ) : (
+                    /* Simple add if no existing stamps */
+                    <button
+                      className="btn"
+                      onClick={() => handleConfirmSaveCollection('add')}
+                      style={{
+                        background: 'var(--color-success)',
+                        color: 'white',
+                        boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                        padding: '12px',
+                        fontWeight: '700',
+                        fontSize: '14px'
+                      }}
+                    >
+                      <Check size={16} />
+                      <span>도장 획득 확정 (도장첩에 저장)</span>
+                    </button>
+                  )}
 
                   {/* Discard / Regenerate */}
                   <button
@@ -486,7 +674,7 @@ export default function StampDetailModal({
           </div>
         ) : (
           /* ========================================================================= */
-          /* CASE 3: Locked Station - Cannot collect (Out of range / Already collected)  */
+          /* CASE 3: Locked Station - Cannot collect (Out of range)                      */
           /* ========================================================================= */
           <div className="glass-card" style={{ padding: '16px', textAlign: 'center', background: 'rgba(255,255,255,0.01)' }}>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
@@ -494,9 +682,7 @@ export default function StampDetailModal({
               <span>도장을 획득할 수 없는 상태입니다.</span>
             </p>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.5' }}>
-              {isCollected 
-                ? `이미 ${activeLine} 도장을 수집 완료했습니다!`
-                : `지하철을 타고 이 역 근처(수집 반경 ${settings.gpsRadius}m 이내)로 접근하면 해당 호선의 도장 수집 권한이 활성화됩니다.`}
+              지하철을 타고 이 역 근처(수집 반경 {settings.gpsRadius}m 이내)로 접근하면 해당 호선의 도장 수집 권한이 활성화됩니다.
             </p>
           </div>
         )}

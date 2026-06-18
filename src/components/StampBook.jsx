@@ -14,8 +14,14 @@ export default function StampBook({ stations, collectedStamps, onSelectStamp }) 
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'collected' | 'locked'
 
   // Statistics
-  const totalStationsCount = stations.length;
-  const collectedCount = Object.keys(collectedStamps).length;
+  // Unique station-line keys with at least one stamp
+  const collectedLineKeys = Object.keys(collectedStamps).filter(key => collectedStamps[key] && collectedStamps[key].length > 0);
+  const collectedUniqueLinesCount = collectedLineKeys.length;
+  
+  // Total stamps collected (sum of lengths)
+  const totalStampsCount = Object.values(collectedStamps).reduce((acc, list) => acc + (list ? list.length : 0), 0);
+  
+  const collectedCount = collectedUniqueLinesCount;
   const collectedPercentage = totalStationsCount > 0 
     ? ((collectedCount / totalStationsCount) * 100).toFixed(1) 
     : 0;
@@ -30,7 +36,10 @@ export default function StampBook({ stations, collectedStamps, onSelectStamp }) 
       const matchesLine = selectedLine === '전체' || station.lines.includes(selectedLine);
       
       // 3. Status filter
-      const collectedLines = station.lines.filter(line => !!collectedStamps[`${station.id}_${line}`]);
+      const collectedLines = station.lines.filter(line => {
+        const list = collectedStamps[`${station.id}_${line}`];
+        return list && list.length > 0;
+      });
       const isCollected = collectedLines.length > 0;
       const matchesStatus = 
         statusFilter === 'all' || 
@@ -61,7 +70,7 @@ export default function StampBook({ stations, collectedStamps, onSelectStamp }) 
           <div>
             <h2 style={{ fontSize: '16px', fontWeight: '800', color: 'white' }}>나의 지하철 도장첩</h2>
             <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-              수도권 전철 도장을 수집해보세요!
+              수도권 전철 도장을 수집해보세요! (총 도장 개수: {totalStampsCount}개)
             </p>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -186,12 +195,16 @@ export default function StampBook({ stations, collectedStamps, onSelectStamp }) 
 
         <div className="stamp-grid">
           {visibleStations.map(station => {
-            const collectedLines = station.lines.filter(line => !!collectedStamps[`${station.id}_${line}`]);
+            const collectedLines = station.lines.filter(line => {
+              const list = collectedStamps[`${station.id}_${line}`];
+              return list && list.length > 0;
+            });
             const isCollected = collectedLines.length > 0;
             
             // Representative line to show (default to first collected line, or primary line if none collected)
             const displayLine = collectedLines[0] || station.lines[0];
-            const stamp = collectedStamps[`${station.id}_${displayLine}`];
+            const stampsList = collectedStamps[`${station.id}_${displayLine}`] || [];
+            const stamp = stampsList[0];
             const lineColor = getLineColor(displayLine);
 
             return (
@@ -222,11 +235,11 @@ export default function StampBook({ stations, collectedStamps, onSelectStamp }) 
                     <div className="stamp-svg-container">
                       <div 
                         dangerouslySetInnerHTML={{ 
-                          __html: stamp.svgContent || generateDefaultStampSVG(station.name, displayLine) 
+                          __html: (stamp && stamp.svgContent) || generateDefaultStampSVG(station.name, displayLine) 
                         }} 
                         style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       />
-                      {stamp.stampType === 'ai' && (
+                      {stamp && stamp.stampType === 'ai' && (
                         <div style={{
                           position: 'absolute',
                           top: '-2px',
@@ -241,6 +254,27 @@ export default function StampBook({ stations, collectedStamps, onSelectStamp }) 
                           justifyContent: 'center'
                         }} title="AI 디자인">
                           <Sparkles size={8} fill="white" />
+                        </div>
+                      )}
+                      {stampsList.length > 1 && (
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '-2px',
+                          right: '-2px',
+                          background: 'rgba(16, 185, 129, 0.95)',
+                          borderRadius: '10px',
+                          padding: '2px 6px',
+                          color: 'white',
+                          fontSize: '9px',
+                          fontWeight: '800',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '1.5px solid var(--bg-primary)',
+                          zIndex: 10
+                        }}>
+                          ×{stampsList.length}
                         </div>
                       )}
                     </div>
@@ -268,7 +302,8 @@ export default function StampBook({ stations, collectedStamps, onSelectStamp }) 
                       border: '1px solid rgba(255,255,255,0.06)'
                     }}>
                       {station.lines.map(line => {
-                        const isLineCollected = !!collectedStamps[`${station.id}_${line}`];
+                        const list = collectedStamps[`${station.id}_${line}`];
+                        const isLineCollected = list && list.length > 0;
                         return (
                           <span 
                             key={line} 

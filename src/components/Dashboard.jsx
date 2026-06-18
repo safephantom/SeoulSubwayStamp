@@ -18,7 +18,10 @@ export default function Dashboard({
   // Find if there is any station nearby within the radius
   const nearestStation = closestStations[0];
   const isNearby = nearestStation && nearestStation.distance <= gpsRadius;
-  const isAlreadyCollected = nearestStation && !!collectedStamps[nearestStation.id];
+  const hasAnyStampForNearest = nearestStation && nearestStation.lines.some(line => {
+    const list = collectedStamps[`${nearestStation.id}_${line}`];
+    return list && list.length > 0;
+  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -101,33 +104,24 @@ export default function Dashboard({
             </p>
           </div>
 
-          {isAlreadyCollected ? (
-            <div style={{
-              background: 'rgba(255,255,255,0.05)',
-              color: 'var(--text-secondary)',
-              padding: '12px 24px',
-              borderRadius: '12px',
-              fontSize: '14px',
-              fontWeight: '600',
-              border: '1px solid var(--border-glass)'
-            }}>
-              ✓ 이미 도장을 수집했습니다!
-            </div>
-          ) : (
-            <button 
-              className="btn btn-primary pulse-target" 
-              onClick={() => onCollectStamp(nearestStation)}
-              style={{ 
-                background: 'var(--color-success)', 
-                boxShadow: '0 4px 16px rgba(16, 185, 129, 0.4)',
-                padding: '14px 28px',
-                fontSize: '15px',
-                width: '100%',
-                fontWeight: '700'
-              }}
-            >
-              도장 수집하기
-            </button>
+          <button 
+            className="btn btn-primary pulse-target" 
+            onClick={() => onCollectStamp(nearestStation)}
+            style={{ 
+              background: 'var(--color-success)', 
+              boxShadow: '0 4px 16px rgba(16, 185, 129, 0.4)',
+              padding: '14px 28px',
+              fontSize: '15px',
+              width: '100%',
+              fontWeight: '700'
+            }}
+          >
+            도장 수집하기
+          </button>
+          {hasAnyStampForNearest && (
+            <p style={{ fontSize: '11.5px', color: 'var(--color-success)', marginTop: '-8px', fontWeight: '600' }}>
+              ✓ 이미 이 역의 도장을 보유하고 있습니다. 새 도장을 추가하거나 대체할 수 있습니다.
+            </p>
           )}
         </div>
       ) : (
@@ -152,7 +146,9 @@ export default function Dashboard({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {closestStations.length > 0 ? (
             closestStations.map((station, index) => {
-              const collected = !!collectedStamps[station.id];
+              const collectedList = station.lines.flatMap(line => collectedStamps[`${station.id}_${line}`] || []);
+              const collectedCount = collectedList.length;
+              const collected = collectedCount > 0;
               return (
                 <div 
                   key={station.id} 
@@ -191,7 +187,7 @@ export default function Dashboard({
                       <span style={{ fontSize: '14px', fontWeight: '700', color: 'white' }}>{station.name}</span>
                       {collected && (
                         <span style={{ fontSize: '10px', color: 'var(--color-success)', marginLeft: '8px', fontWeight: '600' }}>
-                          ✓ 수집됨
+                          ✓ 수집됨 ({collectedCount}개)
                         </span>
                       )}
                     </div>

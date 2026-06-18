@@ -10,6 +10,48 @@ import Settings from './components/Settings';
 import MockGPS from './components/MockGPS';
 import StampDetailModal from './components/StampDetailModal';
 
+// Migration utility to convert single stamp objects to array of stamp objects
+const migrateStampData = (rawData, stations) => {
+  if (!rawData || typeof rawData !== 'object') return {};
+  
+  const migratedData = {};
+  let changed = false;
+
+  // Step 1: Migrate old key schema (stationId -> stationId_lineName)
+  Object.keys(rawData).forEach(key => {
+    if (!key.includes('_')) {
+      const stationId = parseInt(key, 10);
+      const station = stations.find(s => s.id === stationId);
+      if (station && station.lines && station.lines.length > 0) {
+        const primaryLine = station.lines[0];
+        migratedData[`${stationId}_${primaryLine}`] = rawData[key];
+        changed = true;
+      } else {
+        migratedData[key] = rawData[key];
+      }
+    } else {
+      migratedData[key] = rawData[key];
+    }
+  });
+
+  // Step 2: Migrate single object values to arrays of objects
+  Object.keys(migratedData).forEach(key => {
+    const val = migratedData[key];
+    if (val && !Array.isArray(val)) {
+      migratedData[key] = [{
+        id: val.id || `stamp_${new Date(val.collectedAt || Date.now()).getTime()}`,
+        collectedAt: val.collectedAt || new Date().toISOString(),
+        stampType: val.stampType || 'default',
+        svgContent: val.svgContent,
+        story: val.story || ''
+      }];
+      changed = true;
+    }
+  });
+
+  return { data: migratedData, changed };
+};
+
 export default function App() {
   // --- Tab State ---
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'stamps' | 'settings'
@@ -40,30 +82,14 @@ export default function App() {
     if (saved) {
       try { 
         const parsed = JSON.parse(saved); 
-        // Migration logic for old schema (stationId -> stationId_lineName)
-        let migrated = false;
-        const newSchemaStamps = {};
-        Object.keys(parsed).forEach(key => {
-          if (!key.includes('_')) {
-            const stationId = parseInt(key, 10);
-            const station = stationsData.find(s => s.id === stationId);
-            if (station && station.lines && station.lines.length > 0) {
-              const primaryLine = station.lines[0];
-              newSchemaStamps[`${stationId}_${primaryLine}`] = parsed[key];
-              migrated = true;
-            } else {
-              newSchemaStamps[key] = parsed[key];
-            }
-          } else {
-            newSchemaStamps[key] = parsed[key];
-          }
-        });
-        if (migrated) {
-          localStorage.setItem('subway-stamp-collected', JSON.stringify(newSchemaStamps));
-          return newSchemaStamps;
+        const { data: migrated, changed } = migrateStampData(parsed, stationsData);
+        if (changed) {
+          localStorage.setItem('subway-stamp-collected', JSON.stringify(migrated));
         }
-        return parsed; 
-      } catch (e) { /* fallback */ }
+        return migrated;
+      } catch (e) { 
+        console.error("Failed to parse collected stamps:", e);
+      }
     }
     return {};
   });
@@ -146,21 +172,32 @@ export default function App() {
 
   // --- Open Collect Stamp Modal ---
   const handleCollectStamp = (station) => {
-    // Just select the station. The modal will detect it's collectable and show the confirmation/generation buttons.
     setSelectedStation(station);
   };
 
   // --- Confirm Collection & Save ---
-  const handleConfirmCollect = (stationId, lineName, stampType, svgContent, story) => {
+  const handleConfirmCollect = (stationId, lineName, stampType, svgContent, story, mode = 'add', replaceId = null) => {
     const stampKey = `${stationId}_${lineName}`;
+    const existingList = collectedStamps[stampKey] || [];
+    
+    const newStamp = {
+      id: `stamp_${Date.now()}`,
+      collectedAt: new Date().toISOString(),
+      stampType: stampType,
+      svgContent: svgContent,
+      story: story
+    };
+
+    let updatedList;
+    if (mode === 'replace' && replaceId) {
+      updatedList = existingList.map(item => item.id === replaceId ? { ...item, ...newStamp, id: replaceId } : item);
+    } else {
+      updatedList = [...existingList, newStamp];
+    }
+
     const updatedStamps = {
       ...collectedStamps,
-      [stampKey]: {
-        collectedAt: new Date().toISOString(),
-        stampType: stampType,
-        svgContent: svgContent,
-        story: story
-      }
+      [stampKey]: updatedList
     };
     saveCollectedStamps(updatedStamps);
     setSelectedStation(null); // Close modal
@@ -172,34 +209,62 @@ export default function App() {
   };
 
   // --- Delete Stamp ---
-  const handleDeleteStamp = (stationId, lineName) => {
+  const handleDeleteStamp = (stationId, lineName, stampId) => {
     const stampKey = `${stationId}_${lineName}`;
     if (window.confirm(`${lineName} 도장을 삭제하시겠습니까?`)) {
+      const existingList = collectedStamps[stampKey] || [];
+      const updatedList = existingList.filter(item => item.id !== stampId);
       const updatedStamps = { ...collectedStamps };
-      delete updatedStamps[stampKey];
+      
+      if (updatedList.length === 0) {
+        delete updatedStamps[stampKey];
+      } else {
+        updatedStamps[stampKey] = updatedList;
+      }
       saveCollectedStamps(updatedStamps);
-      setSelectedStation(null); // Close modal
+      setSelectedStation(null); // Close modal on deletion
     }
   };
 
   // --- Save / Update custom SVG and story (AI redesign, revert to offline, etc.) ---
-  const handleSaveAIStamp = (stationId, lineName, svgContent, story, stampType = 'ai') => {
+  const handleSaveAIStamp = (stationId, lineName, svgContent, story, stampType = 'ai', stampId = null) => {
     const stampKey = `${stationId}_${lineName}`;
+    const existingList = collectedStamps[stampKey] || [];
+    
+    let updatedList;
+    if (stampId) {
+      updatedList = existingList.map(item => 
+        item.id === stampId 
+          ? { ...item, svgContent, story, stampType } 
+          : item
+      );
+    } else if (existingList.length > 0) {
+      updatedList = existingList.map((item, idx) => 
+        idx === 0 
+          ? { ...item, svgContent, story, stampType } 
+          : item
+      );
+    } else {
+      updatedList = [{
+        id: `stamp_${Date.now()}`,
+        collectedAt: new Date().toISOString(),
+        stampType,
+        svgContent,
+        story
+      }];
+    }
+
     const updatedStamps = {
       ...collectedStamps,
-      [stampKey]: {
-        collectedAt: collectedStamps[stampKey]?.collectedAt || new Date().toISOString(),
-        stampType: stampType,
-        svgContent: svgContent,
-        story: story
-      }
+      [stampKey]: updatedList
     };
     saveCollectedStamps(updatedStamps);
   };
 
   // --- Restore import data ---
   const handleImportStamps = (importedData) => {
-    saveCollectedStamps(importedData);
+    const { data: migrated } = migrateStampData(importedData, stationsData);
+    saveCollectedStamps(migrated);
   };
 
   // --- Reset All Data ---
@@ -223,20 +288,15 @@ export default function App() {
     if (lat === null || lng === null) return false;
     
     const distance = calculateDistance(lat, lng, selectedStation.lat, selectedStation.lng);
-    if (distance > settings.gpsRadius) return false;
-    
-    // Collectable if at least one of the lines is not collected yet
-    const hasUncollectedLine = selectedStation.lines.some(line => !collectedStamps[`${selectedStation.id}_${line}`]);
-    return hasUncollectedLine;
-  }, [selectedStation, activeCoordinates, settings.gpsRadius, collectedStamps]);
+    return distance <= settings.gpsRadius;
+  }, [selectedStation, activeCoordinates, settings.gpsRadius]);
 
   // --- Determine if any station is nearby (for nav icon marker) ---
   const isAnyStationNearby = useMemo(() => {
     if (closestStations.length === 0) return false;
     const nearest = closestStations[0];
-    const hasUncollectedLine = nearest.lines.some(line => !collectedStamps[`${nearest.id}_${line}`]);
-    return nearest.distance <= settings.gpsRadius && hasUncollectedLine;
-  }, [closestStations, settings.gpsRadius, collectedStamps]);
+    return nearest.distance <= settings.gpsRadius;
+  }, [closestStations, settings.gpsRadius]);
 
   return (
     <div className="app-container">
