@@ -89,6 +89,7 @@ export default function App() {
         return migrated;
       } catch (e) { 
         console.error("Failed to parse collected stamps:", e);
+        return {};
       }
     }
     return {};

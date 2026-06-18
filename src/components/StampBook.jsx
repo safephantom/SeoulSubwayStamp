@@ -14,6 +14,7 @@ export default function StampBook({ stations, collectedStamps, onSelectStamp }) 
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'collected' | 'locked'
 
   // Statistics
+  const totalStationsCount = stations.length;
   // Unique station-line keys with at least one stamp
   const collectedLineKeys = Object.keys(collectedStamps).filter(key => collectedStamps[key] && collectedStamps[key].length > 0);
   const collectedUniqueLinesCount = collectedLineKeys.length;
