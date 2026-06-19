@@ -602,7 +602,7 @@ export default function StampDetailModal({
               // STEP 2: Temporary stamp generated in-memory. Confirm or Discard.
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div className="glass-card" style={{ padding: '14px', background: 'rgba(255,255,255,0.02)' }}>
-                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700' }}>임시 생성된 도장 테마:</p>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700' }}>도장 디자인 스토리:</p>
                   <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4', marginTop: '4px' }}>
                     {tempStamp.story}
                   </p>
